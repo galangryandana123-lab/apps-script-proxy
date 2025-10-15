@@ -98,16 +98,25 @@ export default async function handler(req, res) {
       targetUrl = scriptBase + subPath + queryString;
     }
     
-    // Prepare fetch options
+    // Prepare fetch options with proper headers
+    const scriptBase = APPS_SCRIPT_URL.replace('/exec', '');
     const fetchOptions = {
       method: req.method,
       headers: {
-        'User-Agent': req.headers['user-agent'] || 'Akses-Shortener/1.0',
+        'User-Agent': req.headers['user-agent'] || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         'Accept': req.headers['accept'] || '*/*',
         'Accept-Language': req.headers['accept-language'] || 'id,en;q=0.9',
+        'Origin': scriptBase + '/exec',
+        'Referer': scriptBase + '/exec',
       },
-      redirect: 'follow'
+      redirect: 'follow',
+      credentials: 'include'
     };
+    
+    // Forward cookies if present
+    if (req.headers.cookie) {
+      fetchOptions.headers['Cookie'] = req.headers.cookie;
+    }
     
     // Forward POST/PUT/PATCH body if present
     if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
