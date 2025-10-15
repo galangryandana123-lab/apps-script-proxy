@@ -221,38 +221,40 @@ export default async function handler(req, res) {
   console.log('[Proxy Shim] Initialized - Requests will be proxied server-side');
   console.log('[Proxy Shim] Proxy base:', proxyBase);
   
-  // Create stub goog object that queues init calls
-  if (typeof window.goog === 'undefined') {
-    window.__googInitQueue = [];
-    window.goog = {
-      script: {
-        init: function(data) {
-          console.log('[Proxy Shim] goog.script.init called, queuing...');
-          window.__googInitQueue.push(data);
-          // Try to execute after short delay
-          setTimeout(function() {
-            if (window.__realGoog && window.__googInitQueue.length > 0) {
-              console.log('[Proxy Shim] Executing queued goog.script.init');
-              var data = window.__googInitQueue.shift();
-              window.__realGoog.script.init(data);
-            }
-          }, 200);
-        }
+  // Intercept goog.script.init to ensure it's called correctly
+  // We'll wrap it after warden.js loads via MutationObserver
+  var originalGoogInit = null;
+  var initAttempted = false;
+  
+  Object.defineProperty(window, 'goog', {
+    get: function() {
+      return this._goog;
+    },
+    set: function(value) {
+      console.log('[Proxy Shim] goog object set by warden.js');
+      this._goog = value;
+      // Wrap goog.script.init to log calls
+      if (value && value.script && value.script.init && !originalGoogInit) {
+        originalGoogInit = value.script.init;
+        value.script.init = function(data) {
+          console.log('[Proxy Shim] goog.script.init called!');
+          try {
+            return originalGoogInit.call(this, data);
+          } catch(e) {
+            console.error('[Proxy Shim] goog.script.init error:', e);
+            throw e;
+          }
+        };
       }
-    };
-  }
+    },
+    configurable: true
+  });
 })();
 </script>
 `;
         
         // Inject shim at beginning of head (must run before any XHR calls)
         body = body.replace(/<head[^>]*>/i, `$&${locationShim}`);
-        
-        // Add onload to warden script to capture real goog
-        body = body.replace(
-          /(<script[^>]*src="[^"]*warden[^"]*"[^>]*)>/gi,
-          `$1 onload="if(typeof goog!=='undefined'&&goog.script){window.__realGoog=goog;console.log('[Proxy] Real goog captured');if(window.__googInitQueue&&window.__googInitQueue.length>0){console.log('[Proxy] Executing queued init');goog.script.init(window.__googInitQueue.shift());}}"`
-        );
         
         // Replace proxy domain URLs with Apps Script base
         const proxyPattern = new RegExp(
