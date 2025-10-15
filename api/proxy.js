@@ -8,39 +8,31 @@
  * 4. Professional branding
  */
 
-// Your Google Apps Script Web App URL (base URL without /exec)
-const APPS_SCRIPT_BASE = 'https://script.google.com/macros/s/AKfycbyjIrwkM2lA8ov7qac0g2C-pLw8gcp-DO_xy-wTZ0Uigd7r-ijvNIhQv_SgLP5eIOy7';
+// Your Google Apps Script Web App URL
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyjIrwkM2lA8ov7qac0g2C-pLw8gcp-DO_xy-wTZ0Uigd7r-ijvNIhQv_SgLP5eIOy7/exec';
 
 module.exports = async (req, res) => {
   try {
     // Log request for debugging
     console.log(`[Proxy] ${req.method} ${req.url}`);
     
-    // Parse request URL to get path and query
-    const reqUrl = new URL(req.url, `https://${req.headers.host}`);
-    const path = reqUrl.pathname;
-    
-    // Build target URL: append path to base (or use /exec for root)
-    let targetPath = path;
-    if (path === '/' || path === '') {
-      targetPath = '/exec';
-    }
-    
-    const targetUrl = new URL(targetPath, APPS_SCRIPT_BASE);
+    // Build target URL with query parameters
+    const targetUrl = new URL(APPS_SCRIPT_URL);
     
     // Forward all query parameters
-    reqUrl.searchParams.forEach((value, key) => {
-      targetUrl.searchParams.append(key, value);
+    Object.keys(req.query).forEach(key => {
+      targetUrl.searchParams.append(key, req.query[key]);
     });
     
     // Prepare fetch options
+    // IMPORTANT: Don't forward Host header to prevent Google Apps Script 
+    // from rewriting static resource URLs to our proxy domain
     const fetchOptions = {
       method: req.method,
       headers: {
         'User-Agent': req.headers['user-agent'] || 'Vercel-Proxy/1.0',
         'Accept': req.headers['accept'] || '*/*',
         'Accept-Language': req.headers['accept-language'] || 'id,en;q=0.9',
-        'Referer': req.headers['referer'] || '',
       },
       redirect: 'follow'
     };
