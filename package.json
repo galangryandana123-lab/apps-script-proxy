@@ -1,21 +1,25 @@
 {
-  "name": "supplier-gathering-proxy",
-  "version": "1.0.0",
-  "description": "Reverse proxy for PT PLN Nusantara Power Supplier Gathering questionnaire",
-  "main": "api/proxy.js",
+  "name": "akses-shortener",
+  "version": "2.0.0",
+  "description": "Multi-tenant URL shortener for Google Apps Script - Remove warning banner with custom slugs",
+  "main": "api/[slug].js",
   "scripts": {
     "dev": "vercel dev",
     "deploy": "vercel --prod"
   },
   "keywords": [
+    "url-shortener",
     "proxy",
     "vercel",
     "serverless",
-    "apps-script"
+    "apps-script",
+    "multi-tenant"
   ],
   "author": "Galang Ryandana",
   "license": "MIT",
-  "dependencies": {},
+  "dependencies": {
+    "@vercel/kv": "^1.0.1"
+  },
   "devDependencies": {
     "vercel": "^32.0.0"
   }

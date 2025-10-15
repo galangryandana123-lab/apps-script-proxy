@@ -1,106 +1,130 @@
-# Supplier Gathering Proxy
+# 🚀 Akses Shortener
 
-Reverse proxy untuk menghilangkan Google Apps Script warning banner dan menyediakan custom domain yang professional.
+Multi-tenant URL shortener untuk Google Apps Script - Menghilangkan warning banner dan menyediakan custom slug URLs yang professional.
 
 ## 🎯 Fitur
 
-- ✅ Menghilangkan warning banner Google Apps Script
-- ✅ Custom domain (supplier.galangryandana.my.id)
-- ✅ Edge caching untuk performance optimal
-- ✅ Professional branding
-- ✅ Camera/scanner permissions support
+- ✅ **Multi-tenant**: Banyak aplikasi dalam satu platform
+- ✅ **Custom Slug**: URL yang mudah diingat (e.g., `domain.com/supplier-pln`)
+- ✅ **No Warning Banner**: Menghilangkan warning Google Apps Script
+- ✅ **Auto Slug Generator**: Generate slug otomatis dari nama aplikasi
+- ✅ **Database Driven**: Vercel KV (Redis) untuk penyimpanan mapping
+- ✅ **Professional Appearance**: Custom branding untuk setiap aplikasi
+- ✅ **Edge Caching**: Performance optimal dengan CDN
+- ✅ **Camera/Scanner Support**: Permissions untuk barcode/QR scanner
 
 ## 📋 Prerequisites
 
 1. Akun Vercel (gratis di https://vercel.com)
-2. Domain galangryandana.my.id (sudah ada)
-3. Google Apps Script Web App URL
+2. GitHub Account (untuk auto-deployment)
+3. Domain custom (optional, bisa pakai `*.vercel.app`)
 
-## 🚀 Deployment ke Vercel
+## 🚀 Quick Start Deployment
 
-### Step 1: Install Vercel CLI
-
+### **Step 1: Fork & Clone Repository**
 ```bash
-npm install -g vercel
+git clone https://github.com/yourusername/akses-shortener
+cd akses-shortener
 ```
 
-### Step 2: Login ke Vercel
-
+### **Step 2: Push ke GitHub**
 ```bash
-vercel login
+git remote set-url origin https://github.com/yourusername/akses-shortener.git
+git push -u origin main
 ```
 
-### Step 3: Deploy Project
+### **Step 3: Deploy ke Vercel via Web Dashboard**
 
-```bash
-cd /Applications/XAMPP/xamppfiles/htdocs/vibecode/supplier-proxy
-vercel --prod
+1. Buka https://vercel.com/new
+2. **Import Git Repository** → Pilih repo Anda
+3. **Configure Project:**
+   - Project Name: `akses-shortener`
+   - Framework Preset: Other
+   - Root Directory: `./`
+4. Klik **"Deploy"**
+
+### **Step 4: Setup Vercel KV Database** (PENTING!)
+
+Setelah deployment pertama:
+
+1. Di Vercel Dashboard, buka project Anda
+2. Klik **"Storage"** tab
+3. Klik **"Create Database"**
+4. Pilih **"KV"** (Key-Value Storage)
+5. Database Name: `akses-kv`
+6. Klik **"Create"**
+7. **Auto-link** ke project Anda
+8. **Redeploy** project (Settings → Deployments → Redeploy)
+
+### **Step 5: Custom Domain (Optional)**
+
+1. Di project dashboard, klik **"Settings" → "Domains"**
+2. Add domain: `yourdomain.com`
+3. Update DNS records sesuai instruksi Vercel
+
+## 🎨 Cara Menggunakan
+
+### **Untuk User: Generate Slug**
+
+1. Buka `https://yourdomain.com/`
+2. Isi form:
+   - **Nama Aplikasi**: "Supplier Gathering PLN"
+   - **URL Apps Script**: `https://script.google.com/macros/s/.../exec`
+3. Klik **"Generate Slug"**
+4. Copy custom URL: `https://yourdomain.com/supplier-gathering-pln`
+5. Share URL tersebut ke users!
+
+### **Untuk End Users: Akses App**
+
+1. Buka `https://yourdomain.com/supplier-gathering-pln`
+2. Aplikasi akan load **TANPA warning banner** ✅
+3. URL tetap di custom domain (tidak redirect ke script.google.com)
+
+## 🏗️ Architecture
+
+```
+User Request
+    ↓
+https://yourdomain.com/{slug}
+    ↓
+Vercel Serverless Function
+    ↓
+Lookup slug in KV Database
+    ↓
+Fetch from Apps Script URL
+    ↓
+Rewrite HTML (remove warning)
+    ↓
+Return to User (URL stays on custom domain)
 ```
 
-### Step 4: Setup Custom Domain
+## 📊 Monitoring & Analytics
 
-1. Login ke Vercel Dashboard: https://vercel.com/dashboard
-2. Pilih project "supplier-gathering-proxy"
-3. Go to Settings → Domains
-4. Add domain: `supplier.galangryandana.my.id`
-5. Vercel akan memberikan DNS records yang perlu ditambahkan
+**View Logs:**
+- Vercel Dashboard → Project → Functions → Logs
+- Real-time function execution logs
+- Error tracking
 
-### Step 5: Update DNS Records
-
-Di DNS provider (cloudflare/namecheap/dll) untuk `galangryandana.my.id`:
-
-**Option A: CNAME Record (Recommended)**
-```
-Type: CNAME
-Name: supplier
-Value: cname.vercel-dns.com
-TTL: Auto/3600
-```
-
-**Option B: A Record**
-```
-Type: A
-Name: supplier
-Value: 76.76.21.21 (Vercel IP)
-TTL: Auto/3600
-```
-
-## 🔧 Configuration
-
-Edit `api/proxy.js` dan update Apps Script URL:
-
-```javascript
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec';
-```
-
-## 📊 Monitoring
-
-Lihat logs di Vercel Dashboard:
-- https://vercel.com/dashboard
-- Pilih project → Functions → View Logs
+**Database Analytics:**
+- Each slug tracks `accessCount`
+- View in Vercel KV Dashboard
 
 ## 🧪 Testing
 
-### Local Testing
+### Local Development
 ```bash
+npm install
 vercel dev
 # Visit: http://localhost:3000
 ```
 
 ### Production Testing
 ```bash
-curl -I https://supplier.galangryandana.my.id
-```
+# Test landing page
+curl https://yourdomain.com/
 
-## 🎨 Custom Domain Structure
-
-```
-Main Domain: galangryandana.my.id
-Subdomain: supplier.galangryandana.my.id
-           ↓
-           Vercel Edge Network (Proxy)
-           ↓
-           Google Apps Script
+# Test slug
+curl https://yourdomain.com/your-slug
 ```
 
 ## ⚡ Performance
@@ -117,41 +141,66 @@ Subdomain: supplier.galangryandana.my.id
 - Rate limiting (Vercel)
 - Security headers enabled
 
-## 📝 Cost
+## 💰 Cost Estimation
 
-**Vercel Free Tier:**
-- 100GB bandwidth/month ✅
-- Unlimited serverless function invocations ✅
-- Automatic SSL ✅
-- Global CDN ✅
+**Vercel Free Tier (Hobby):**
+- ✅ 100GB bandwidth/month
+- ✅ Unlimited serverless function invocations
+- ✅ 256KB KV storage (plenty for thousands of slugs)
+- ✅ Automatic SSL
+- ✅ Global CDN
 
-**Estimated usage for 500 suppliers:**
-- Form page: ~100KB × 500 = 50MB
-- API calls: ~10KB × 500 = 5MB
-- Total: ~55MB ✅ Well within free tier!
+**Example Usage:**
+- 10 apps × 1,000 pageviews/month = 10,000 requests
+- Avg 100KB per request = 1GB bandwidth
+- **Cost: $0 (Free tier)** ✅
+
+**Scale:**
+- Free tier dapat handle **ratusan apps** dan **puluhan ribu users/month**
 
 ## 🛠️ Troubleshooting
 
-### Domain not working
-- Check DNS propagation: https://dnschecker.org
-- Wait 5-10 minutes for DNS to propagate
-- Verify CNAME points to: cname.vercel-dns.com
+### ❌ "KV_REST_API_URL is not defined"
+**Solusi:**
+1. Buka Vercel Dashboard → Project → Storage
+2. Create KV Database
+3. Link database ke project
+4. Redeploy project
 
-### 502 Bad Gateway
-- Check Apps Script URL is correct
-- Ensure Apps Script is deployed as Web App
-- Verify "Anyone" access in Apps Script
+### ❌ "Slug not found" (404)
+**Cek:**
+- Slug sudah dibuat via landing page?
+- Cek di Vercel KV Dashboard apakah data tersimpan
+- Test dengan slug lain
 
-### Slow response
-- Check Vercel function logs
-- Verify Apps Script response time
-- Consider enabling more aggressive caching
+### ❌ Warning banner masih muncul
+**Penyebab:**
+- HTML rewriting gagal
+- Apps Script URL tidak valid
+- Cek Vercel function logs untuk error
 
-## 📞 Support
+### ❌ Slug sudah ada (409)
+**Solusi:**
+- Gunakan nama aplikasi yang berbeda
+- Atau hapus slug lama dari KV Database
 
-Issue tracker: Create issue in project repository
-Documentation: https://vercel.com/docs
+### 🐌 Response lambat
+- Cache: Check Cache-Control headers
+- Apps Script: Optimize script performance
+- Vercel Region: Consider using Edge Functions
+
+## 🤝 Contributing
+
+Contributions welcome! Please:
+1. Fork repository
+2. Create feature branch
+3. Make changes
+4. Submit pull request
 
 ## 📄 License
 
 MIT License - Free to use and modify
+
+---
+
+Made with ❤️ by [Galang Ryandana](https://github.com/galangryandana123-lab)

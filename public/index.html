@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Akses Shortener - Apps Script URL Shortener</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .container {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      max-width: 600px;
+      width: 100%;
+      padding: 40px;
+    }
+
+    h1 {
+      color: #667eea;
+      font-size: 2rem;
+      margin-bottom: 8px;
+      text-align: center;
+    }
+
+    .subtitle {
+      color: #666;
+      text-align: center;
+      margin-bottom: 32px;
+      font-size: 1rem;
+    }
+
+    .form-group {
+      margin-bottom: 24px;
+    }
+
+    label {
+      display: block;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 8px;
+      font-size: 0.95rem;
+    }
+
+    input {
+      width: 100%;
+      padding: 14px 16px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 1rem;
+      transition: all 0.3s;
+      font-family: inherit;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .help-text {
+      margin-top: 8px;
+      font-size: 0.85rem;
+      color: #666;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .help-text strong {
+      color: #e74c3c;
+    }
+
+    button {
+      width: 100%;
+      padding: 16px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      margin-top: 8px;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .result {
+      display: none;
+      margin-top: 32px;
+      padding: 24px;
+      background: #f8f9fa;
+      border-radius: 8px;
+      border-left: 4px solid #667eea;
+    }
+
+    .result.show {
+      display: block;
+      animation: slideIn 0.3s ease;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .result-title {
+      color: #667eea;
+      font-size: 1.2rem;
+      font-weight: 600;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .result-item {
+      margin-bottom: 16px;
+    }
+
+    .result-label {
+      font-weight: 600;
+      color: #666;
+      font-size: 0.85rem;
+      margin-bottom: 6px;
+    }
+
+    .result-value {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .result-url {
+      flex: 1;
+      padding: 12px;
+      background: white;
+      border: 2px solid #e0e0e0;
+      border-radius: 6px;
+      font-family: 'Monaco', 'Courier New', monospace;
+      font-size: 0.95rem;
+      color: #333;
+      word-break: break-all;
+    }
+
+    .copy-btn {
+      padding: 12px 20px;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+
+    .copy-btn:hover {
+      background: #5568d3;
+    }
+
+    .copy-btn.copied {
+      background: #27ae60;
+    }
+
+    .error {
+      display: none;
+      margin-top: 16px;
+      padding: 16px;
+      background: #fee;
+      border-left: 4px solid #e74c3c;
+      border-radius: 6px;
+      color: #c0392b;
+    }
+
+    .error.show {
+      display: block;
+    }
+
+    .loading {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: white;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .footer {
+      margin-top: 32px;
+      text-align: center;
+      color: #999;
+      font-size: 0.85rem;
+    }
+
+    .footer a {
+      color: #667eea;
+      text-decoration: none;
+    }
+
+    .footer a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🚀 Akses Shortener</h1>
+    <p class="subtitle">Apps Script URL Shortener - Tanpa Warning Banner</p>
+
+    <form id="slugForm">
+      <div class="form-group">
+        <label for="appName">Nama Aplikasi</label>
+        <input 
+          type="text" 
+          id="appName" 
+          name="appName" 
+          placeholder="Contoh: Supplier Gathering PLN"
+          required
+        >
+        <div class="help-text">Slug akan dibuat otomatis dari nama ini</div>
+      </div>
+
+      <div class="form-group">
+        <label for="appsScriptUrl">URL Apps Script Web App Deployment</label>
+        <input 
+          type="url" 
+          id="appsScriptUrl" 
+          name="appsScriptUrl" 
+          placeholder="https://script.google.com/macros/s/.../exec"
+          required
+        >
+        <div class="help-text">
+          <strong>⚠️ Penting:</strong> Gunakan URL <strong>deployment</strong> yang mengandung <code>/macros/s/</code> dan berakhir dengan <code>/exec</code>
+        </div>
+      </div>
+
+      <button type="submit" id="submitBtn">
+        <span id="btnText">Generate Slug</span>
+        <span id="btnLoading" class="loading" style="display: none;"></span>
+      </button>
+    </form>
+
+    <div class="error" id="error"></div>
+
+    <div class="result" id="result">
+      <div class="result-title">
+        🎉 Slug berhasil dibuat!
+      </div>
+
+      <div class="result-item">
+        <div class="result-label">Slug:</div>
+        <div class="result-value">
+          <div class="result-url" id="resultSlug"></div>
+        </div>
+      </div>
+
+      <div class="result-item">
+        <div class="result-label">URL Custom:</div>
+        <div class="result-value">
+          <div class="result-url" id="resultUrl"></div>
+          <button class="copy-btn" id="copyBtn">Copy</button>
+        </div>
+      </div>
+
+      <div class="help-text" style="margin-top: 16px;">
+        🎉 Sekarang Anda bisa mengakses aplikasi melalui URL custom di atas!
+      </div>
+    </div>
+
+    <div class="footer">
+      Made with ❤️ by <a href="https://github.com/galangryandana123-lab" target="_blank">Galang Ryandana</a>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById('slugForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const btnText = document.getElementById('btnText');
+    const btnLoading = document.getElementById('btnLoading');
+    const resultDiv = document.getElementById('result');
+    const errorDiv = document.getElementById('error');
+    const resultSlug = document.getElementById('resultSlug');
+    const resultUrl = document.getElementById('resultUrl');
+    const copyBtn = document.getElementById('copyBtn');
+
+    // Generate slug from app name
+    function generateSlug(text) {
+      return text
+        .toLowerCase()
+        .trim()
+        .replace(/[^\w\s-]/g, '')
+        .replace(/[\s_-]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+    }
+
+    // Show error
+    function showError(message) {
+      errorDiv.textContent = message;
+      errorDiv.classList.add('show');
+      setTimeout(() => {
+        errorDiv.classList.remove('show');
+      }, 5000);
+    }
+
+    // Form submission
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const appName = document.getElementById('appName').value.trim();
+      const appsScriptUrl = document.getElementById('appsScriptUrl').value.trim();
+
+      // Validate Apps Script URL
+      if (!appsScriptUrl.includes('/macros/s/') || !appsScriptUrl.endsWith('/exec')) {
+        showError('URL Apps Script tidak valid! Pastikan URL mengandung /macros/s/ dan berakhir dengan /exec');
+        return;
+      }
+
+      // Generate slug
+      const slug = generateSlug(appName);
+      if (!slug) {
+        showError('Nama aplikasi tidak valid!');
+        return;
+      }
+
+      // Show loading
+      submitBtn.disabled = true;
+      btnText.style.display = 'none';
+      btnLoading.style.display = 'inline-block';
+      resultDiv.classList.remove('show');
+      errorDiv.classList.remove('show');
+
+      try {
+        // Send to API
+        const response = await fetch('/api/create-slug', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            slug,
+            appName,
+            appsScriptUrl
+          })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Gagal membuat slug');
+        }
+
+        // Show result
+        const customUrl = `${window.location.origin}/${slug}`;
+        resultSlug.textContent = slug;
+        resultUrl.textContent = customUrl;
+        resultDiv.classList.add('show');
+
+        // Reset form
+        form.reset();
+
+      } catch (error) {
+        showError(error.message);
+      } finally {
+        // Hide loading
+        submitBtn.disabled = false;
+        btnText.style.display = 'inline';
+        btnLoading.style.display = 'none';
+      }
+    });
+
+    // Copy to clipboard
+    copyBtn.addEventListener('click', async () => {
+      const url = resultUrl.textContent;
+      try {
+        await navigator.clipboard.writeText(url);
+        copyBtn.textContent = '✓ Copied!';
+        copyBtn.classList.add('copied');
+        setTimeout(() => {
+          copyBtn.textContent = 'Copy';
+          copyBtn.classList.remove('copied');
+        }, 2000);
+      } catch (error) {
+        showError('Gagal copy URL');
+      }
+    });
+
+    // Real-time slug preview
+    document.getElementById('appName').addEventListener('input', (e) => {
+      const slug = generateSlug(e.target.value);
+      if (slug) {
+        e.target.nextElementSibling.innerHTML = `Slug akan dibuat: <strong>${slug}</strong>`;
+      } else {
+        e.target.nextElementSibling.textContent = 'Slug akan dibuat otomatis dari nama ini';
+      }
+    });
+  </script>
+</body>
+</html>
