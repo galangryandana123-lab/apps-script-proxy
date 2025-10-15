@@ -189,7 +189,7 @@ export default async function handler(req, res) {
 </script>
 `;
         
-        // Inject location shim at the beginning of <head>
+        // Inject shim at beginning of head (must run before any XHR calls)
         body = body.replace(/<head[^>]*>/i, `$&${locationShim}`);
         
         // Replace proxy domain URLs with Apps Script base
