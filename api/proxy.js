@@ -256,24 +256,38 @@ export default async function handler(req, res) {
   const proxySlug = '${slug}';
   const proxyBase = window.location.origin + '/' + proxySlug;
   
-  // Override XMLHttpRequest to ensure URLs stay on proxy domain
+  // Override XMLHttpRequest - route API calls through proxy, static direct to Google
   const originalOpen = XMLHttpRequest.prototype.open;
   XMLHttpRequest.prototype.open = function(method, url, ...args) {
     if (typeof url === 'string' && url.startsWith('/') && !url.startsWith('//')) {
-      // Keep URL on proxy domain for server-side proxying (avoid CORS!)
-      url = proxyBase + url;
-      console.log('[Proxy Shim] XHR routed through proxy:', url);
+      // Check if it's a Google static resource
+      if (url.startsWith('/static/') || url.includes('/warden') || url.includes('/client/js/')) {
+        // Load directly from script.google.com (no CORS issues for static)
+        url = 'https://script.google.com' + url;
+        console.log('[Proxy Shim] XHR static resource:', url);
+      } else {
+        // API calls through proxy to avoid CORS
+        url = proxyBase + url;
+        console.log('[Proxy Shim] XHR routed through proxy:', url);
+      }
     }
     return originalOpen.call(this, method, url, ...args);
   };
   
-  // Override fetch to ensure URLs stay on proxy domain
+  // Override fetch - route API calls through proxy, static direct to Google
   const originalFetch = window.fetch;
   window.fetch = function(url, ...args) {
     if (typeof url === 'string' && url.startsWith('/') && !url.startsWith('//')) {
-      // Keep URL on proxy domain for server-side proxying (avoid CORS!)
-      url = proxyBase + url;
-      console.log('[Proxy Shim] Fetch routed through proxy:', url);
+      // Check if it's a Google static resource
+      if (url.startsWith('/static/') || url.includes('/warden') || url.includes('/client/js/')) {
+        // Load directly from script.google.com
+        url = 'https://script.google.com' + url;
+        console.log('[Proxy Shim] Fetch static resource:', url);
+      } else {
+        // API calls through proxy to avoid CORS
+        url = proxyBase + url;
+        console.log('[Proxy Shim] Fetch routed through proxy:', url);
+      }
     }
     return originalFetch.call(this, url, ...args);
   };
@@ -307,8 +321,7 @@ export default async function handler(req, res) {
           return scriptBase + path;
         });
         
-        // Fix relative URLs - rewrite to proxy path (not direct script.google.com)
-        // This ensures scripts/assets load through proxy with correct referer
+        // Fix relative URLs - intelligently handle different resource types
         body = body.replace(
           /(['"\(])(\/[^"'\)\s][^"'\)]*)/g,
           (match, prefix, url) => {
@@ -316,33 +329,67 @@ export default async function handler(req, res) {
             if (url.match(/^\/\//)) return match;
             // Skip if already has slug prefix (avoid duplication)
             if (url.startsWith(`/${slug}/`)) return match;
-            // Rewrite to proxy path: /slug/static/... instead of script.google.com/static/...
-            // This makes browser load through our proxy with correct referer headers
+            
+            // IMPORTANT: Google static resources MUST load from script.google.com directly
+            // These paths only work from root domain, not from deployment URLs
+            if (url.startsWith('/static/') || 
+                url.startsWith('/macros/') || 
+                url.startsWith('/_/') ||
+                url.includes('/warden') ||
+                url.includes('/client/js/')) {
+              // Rewrite to absolute script.google.com URL for direct loading
+              return prefix + 'https://script.google.com' + url;
+            }
+            
+            // For user-defined paths (your API endpoints), route through proxy
+            // This includes: /exec, /dev, custom endpoints
             return prefix + `/${slug}` + url;
           }
         );
         
-        // Fix ALL src and href attributes - rewrite to proxy path
+        // Fix ALL src and href attributes - intelligently handle different types
         body = body.replace(
           /(src|href)=(["'])([^"']+)\2/gi,
           (match, attr, quote, url) => {
             if (url.startsWith('/') && !url.startsWith('//') && !url.startsWith('http')) {
               // Skip if already has slug prefix
               if (url.startsWith(`/${slug}/`)) return match;
-              // Rewrite to proxy path
+              
+              // Google static resources must load from script.google.com
+              if (url.startsWith('/static/') || 
+                  url.startsWith('/macros/') || 
+                  url.startsWith('/_/') ||
+                  url.includes('/warden') ||
+                  url.includes('/client/js/')) {
+                return `${attr}=${quote}https://script.google.com${url}${quote}`;
+              }
+              
+              // User paths through proxy
               return `${attr}=${quote}/${slug}${url}${quote}`;
             }
             return match;
           }
         );
         
-        // Fix action and data attributes - rewrite to proxy path
+        // Fix action and data attributes - handle forms and AJAX endpoints
         body = body.replace(
-          /(action|data-url|data-href)=["']([^"']+)["']/gi,
+          /(action|data-url|data-href|data-endpoint)=["']([^"']+)["']/gi,
           (match, attr, url) => {
             if (url.startsWith('/') && !url.startsWith('//')) {
               // Skip if already has slug prefix
               if (url.startsWith(`/${slug}/`)) return match;
+              
+              // Form actions and API endpoints should go through proxy
+              // (these are typically /exec or custom endpoints)
+              if (url === '/exec' || url === '/dev' || !url.includes('/static/')) {
+                return `${attr}="/${slug}${url}"`;
+              }
+              
+              // Static resources direct to script.google.com
+              if (url.startsWith('/static/') || url.includes('/warden')) {
+                return `${attr}="https://script.google.com${url}"`;
+              }
+              
               return `${attr}="/${slug}${url}"`;
             }
             return match;

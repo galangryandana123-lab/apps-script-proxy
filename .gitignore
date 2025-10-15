@@ -1,24 +1,36 @@
 # Dependencies
 node_modules/
-package-lock.json
-yarn.lock
+.pnp
+.pnp.js
+
+# Testing
+coverage/
+*.lcov
+.nyc_output
+
+# Production
+build/
+dist/
+out/
+.next/
+
+# Misc
+.DS_Store
+*.pem
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Environment Variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 
 # Vercel
 .vercel
-
-# Environment
-.env
-.env.local
-.env.production
-
-# Logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-
-# OS
-.DS_Store
-Thumbs.db
 
 # IDE
 .vscode/
@@ -26,3 +38,17 @@ Thumbs.db
 *.swp
 *.swo
 *~
+
+# Logs
+logs/
+*.log
+
+# OS generated files
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# Package lock files (keep one)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml

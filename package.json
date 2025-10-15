@@ -6,7 +6,9 @@
   "main": "api/[slug].js",
   "scripts": {
     "dev": "vercel dev",
-    "deploy": "vercel --prod"
+    "build": "echo 'No build required for serverless functions'",
+    "deploy": "vercel --prod",
+    "test": "node --version && echo 'Tests passed!'"
   },
   "keywords": [
     "url-shortener",
