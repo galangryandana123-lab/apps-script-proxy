@@ -55,6 +55,26 @@ module.exports = async (req, res) => {
       body = await response.json();
     } else if (contentType.includes('text/')) {
       body = await response.text();
+      
+      // Rewrite HTML to fix static resource URLs
+      if (contentType.includes('text/html') && typeof body === 'string') {
+        // Replace proxy domain URLs with script.google.com URLs
+        const proxyHost = req.headers.host || 'shortener-proxy.vercel.app';
+        
+        // Replace all occurrences of proxy domain in static resource URLs
+        body = body.replace(
+          new RegExp(`https?://${proxyHost.replace('.', '\\.')}/static/`, 'g'),
+          'https://script.google.com/static/'
+        );
+        
+        // Also replace relative URLs
+        body = body.replace(
+          /(['"])\/static\//g,
+          '$1https://script.google.com/static/'
+        );
+        
+        console.log('[Proxy] Rewrote static resource URLs in HTML');
+      }
     } else {
       body = await response.arrayBuffer();
     }
