@@ -1,6 +1,12 @@
 {
   "version": 2,
   "name": "akses-shortener",
+  "rewrites": [
+    {
+      "source": "/((?!api|_next|favicon.ico|index.html).*)",
+      "destination": "/api/[...slug]"
+    }
+  ],
   "headers": [
     {
       "source": "/(.*)",
