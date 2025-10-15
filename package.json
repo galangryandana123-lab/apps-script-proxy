@@ -6,7 +6,8 @@
   "main": "api/[slug].js",
   "scripts": {
     "dev": "vercel dev",
-    "build": "echo 'No build required for serverless functions'",
+    "build": "echo 'No build required - serverless functions project'",
+    "vercel-build": "echo 'No build required'",
     "deploy": "vercel --prod",
     "test": "node --version && echo 'Tests passed!'"
   },
