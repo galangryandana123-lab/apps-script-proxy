@@ -31,6 +31,7 @@ export default async function handler(req, res) {
 
     // Log request
     console.log(`[Proxy] ${req.method} /${slugParam}`);
+    console.log(`[Proxy] Parsed - slug: "${slug}", subPath: "${subPath}"`);
 
     // Lookup slug in database
     const mapping = await kv.get(`slug:${slug}`);
@@ -113,10 +114,12 @@ export default async function handler(req, res) {
     if (!subPath || subPath === '/' || subPath === '') {
       // Main page: /{slug}
       targetUrl = APPS_SCRIPT_URL + queryString;
+      console.log(`[Proxy] Main page request, target: ${targetUrl}`);
     } else {
       // Sub-paths: /{slug}/static/..., etc
       const scriptBase = APPS_SCRIPT_URL.replace('/exec', '');
       targetUrl = scriptBase + subPath + queryString;
+      console.log(`[Proxy] Sub-path request, scriptBase: ${scriptBase}, subPath: ${subPath}, target: ${targetUrl}`);
     }
     
     // Prepare fetch options - forward ALL client headers except problematic ones
