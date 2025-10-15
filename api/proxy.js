@@ -177,33 +177,18 @@ export default async function handler(req, res) {
     return originalFetch.call(this, url, ...args);
   };
   
-  // Override window.location for reading
-  const originalLocation = window.location;
-  const scriptUrl = new URL(scriptBase + '/exec');
+  // Override location.toString() for URL construction
+  try {
+    const originalToString = window.location.toString;
+    window.location.toString = function() {
+      return scriptBase + '/exec';
+    };
+  } catch(e) {
+    // Location override may fail in some browsers - that's OK
+    console.log('[Proxy Shim] Location override skipped (browser restriction)');
+  }
   
-  Object.defineProperty(window, 'location', {
-    get: function() {
-      return new Proxy(originalLocation, {
-        get: function(target, prop) {
-          if (prop === 'origin') return scriptUrl.origin;
-          if (prop === 'hostname') return scriptUrl.hostname;
-          if (prop === 'host') return scriptUrl.host;
-          if (prop === 'protocol') return scriptUrl.protocol;
-          if (prop === 'pathname') return scriptUrl.pathname;
-          if (prop === 'href') return scriptBase + '/exec' + target.search + target.hash;
-          if (prop === 'toString') return function() { return scriptBase + '/exec'; };
-          return target[prop];
-        }
-      });
-    },
-    set: function(value) {
-      // Allow location.href = ... to work
-      window.location.href = value;
-    },
-    configurable: true
-  });
-  
-  console.log('[Proxy Shim] Initialized - XHR/Fetch/Location overridden');
+  console.log('[Proxy Shim] Initialized - XHR/Fetch overridden');
   console.log('[Proxy Shim] All requests will go to:', scriptBase);
 })();
 </script>
