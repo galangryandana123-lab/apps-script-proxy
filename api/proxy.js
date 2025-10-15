@@ -144,6 +144,12 @@ export default async function handler(req, res) {
         const proxyHost = req.headers.host;
         const scriptBase = APPS_SCRIPT_URL.replace('/exec', '');
         
+        // Inject base tag to fix all relative URLs
+        body = body.replace(
+          /<head[^>]*>/i,
+          `$&\n<base href="${scriptBase}/">`
+        );
+        
         // Replace proxy domain URLs with Apps Script base
         const proxyPattern = new RegExp(
           `https?://${proxyHost.replace(/\./g, '\\.')}/${slug}(/[^"'\\s>]*)`,
@@ -158,13 +164,24 @@ export default async function handler(req, res) {
           return scriptBase + path;
         });
         
-        // Fix relative URLs
+        // Fix relative URLs to absolute
         body = body.replace(
-          /(['"])(\/(?:static|macros|warden)[^"']*)/g,
+          /(['"])(\/(?:static|macros|warden|a)[^"']*)/g,
           `$1${scriptBase}$2`
         );
         
-        console.log('[Proxy] Rewrote resource URLs in HTML');
+        // Fix src and href attributes that might be relative
+        body = body.replace(
+          /(src|href)=["'](?!https?:\/\/|\/\/)([^"']+)["']/gi,
+          (match, attr, url) => {
+            if (url.startsWith('/')) {
+              return `${attr}="${scriptBase}${url}"`;
+            }
+            return match;
+          }
+        );
+        
+        console.log('[Proxy] Rewrote resource URLs in HTML with base tag');
       }
     } else {
       body = await response.arrayBuffer();
