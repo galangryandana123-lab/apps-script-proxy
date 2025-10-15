@@ -11,8 +11,8 @@
       "destination": "/api/:path*"
     },
     {
-      "source": "/:slug",
-      "destination": "/api/:slug"
+      "source": "/:match*",
+      "destination": "/api/:match*"
     }
   ],
   "headers": [

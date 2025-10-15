@@ -13,10 +13,14 @@ import { kv } from '@vercel/kv';
 
 export default async function handler(req, res) {
   try {
-    const { slug } = req.query;
+    // Extract slug from catch-all route
+    // slug can be: ['supplier-gathering'] or ['supplier-gathering', 'wardeninit']
+    const slugArray = Array.isArray(req.query.slug) ? req.query.slug : [req.query.slug];
+    const slug = slugArray[0]; // First segment is the actual slug
+    const subPath = slugArray.length > 1 ? '/' + slugArray.slice(1).join('/') : '';
 
     // Log request
-    console.log(`[Proxy] ${req.method} /${slug}${req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : ''}`);
+    console.log(`[Proxy] ${req.method} /${slugArray.join('/')}${req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : ''}`);
 
     // Lookup slug in database
     const mapping = await kv.get(`slug:${slug}`);
@@ -79,19 +83,19 @@ export default async function handler(req, res) {
       console.error('[Proxy] Failed to increment access count:', err);
     });
 
-    // Parse full URL with path and query
+    // Parse query string
     const fullUrl = new URL(req.url, `https://${req.headers.host}`);
-    const path = fullUrl.pathname.replace(`/${slug}`, ''); // Remove slug from path
     const queryString = fullUrl.search;
     
     // Build target URL
     let targetUrl;
-    if (!path || path === '/' || path === '') {
+    if (!subPath || subPath === '/' || subPath === '') {
+      // Main page: /{slug}
       targetUrl = APPS_SCRIPT_URL + queryString;
     } else {
-      // For other paths like /wardeninit, append to base URL
+      // Sub-paths: /{slug}/wardeninit, /{slug}/static/...
       const scriptBase = APPS_SCRIPT_URL.replace('/exec', '');
-      targetUrl = scriptBase + path + queryString;
+      targetUrl = scriptBase + subPath + queryString;
     }
     
     // Prepare fetch options
