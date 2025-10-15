@@ -108,9 +108,9 @@ export default async function handler(req, res) {
     if (subPath === '/wardeninit') {
       console.log('[Proxy] Mocking /wardeninit response (bypassing 400 error)');
       // Return fake success response matching Apps Script format
-      // Based on actual response structure: [[["di",35],["e",3,null,null,88]]]
-      // Success response: just the "di" (dialog init?) without error
-      const mockResponse = ")]}'\\n[[[\"di\",1]]]";
+      // Real error: [[["er",null,null,null,null,400,...],["di",35],["e",3,...]]]
+      // Try complete success with multiple tuples like real response
+      const mockResponse = ")]}'\\n[[[\"di\",1],[\"e\",4]]]";
       res.setHeader('Content-Type', 'application/json; charset=utf-8');
       res.setHeader('Access-Control-Allow-Origin', '*');
       res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
