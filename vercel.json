@@ -1,16 +1,10 @@
 {
   "version": 2,
   "name": "supplier-gathering-proxy",
-  "builds": [
+  "rewrites": [
     {
-      "src": "api/**/*.js",
-      "use": "@vercel/node"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "/api/proxy.js"
+      "source": "/(.*)",
+      "destination": "/api/proxy.js"
     }
   ],
   "headers": [
