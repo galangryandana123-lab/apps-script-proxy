@@ -86,8 +86,9 @@ export default async function handler(req, res) {
 
     const APPS_SCRIPT_URL = mapping.appsScriptUrl;
 
-    // Increment access count (fire and forget)
-    kv.hincrby(`slug:${slug}`, 'accessCount', 1).catch(err => {
+    // Increment access count in separate key (fire and forget)
+    // Note: mapping is stored as JSON string, so we use separate key for counter
+    kv.incr(`slug:${slug}:count`).catch(err => {
       console.error('[Proxy] Failed to increment access count:', err);
     });
 
