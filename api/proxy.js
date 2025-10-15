@@ -104,13 +104,22 @@ export default async function handler(req, res) {
     // Reconstruct query string (with leading ? if not empty)
     const queryString = searchParams.toString() ? '?' + searchParams.toString() : '';
     
+    // HACK: Mock /wardeninit response (Apps Script rejects our proxy requests)
+    if (subPath === '/wardeninit') {
+      console.log('[Proxy] Mocking /wardeninit response (bypassing 400 error)');
+      // Return fake success response with XSSI prefix like Apps Script does
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      return res.send(")]}'\\n[[]]");
+    }
+    
     // Build target URL
     let targetUrl;
     if (!subPath || subPath === '/' || subPath === '') {
       // Main page: /{slug}
       targetUrl = APPS_SCRIPT_URL + queryString;
     } else {
-      // Sub-paths: /{slug}/wardeninit, /{slug}/static/...
+      // Sub-paths: /{slug}/static/..., etc
       const scriptBase = APPS_SCRIPT_URL.replace('/exec', '');
       targetUrl = scriptBase + subPath + queryString;
     }
