@@ -222,7 +222,18 @@ export default async function handler(req, res) {
           }
         );
         
-        // Fix action and data-url attributes
+        // Fix ALL src and href attributes specifically (catch edge cases)
+        body = body.replace(
+          /(src|href)=(["'])([^"']+)\2/gi,
+          (match, attr, quote, url) => {
+            if (url.startsWith('/') && !url.startsWith('//') && !url.startsWith('http')) {
+              return `${attr}=${quote}${scriptBase}${url}${quote}`;
+            }
+            return match;
+          }
+        );
+        
+        // Fix action and data attributes
         body = body.replace(
           /(action|data-url|data-href)=["']([^"']+)["']/gi,
           (match, attr, url) => {
