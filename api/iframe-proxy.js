@@ -270,15 +270,15 @@ export default async function handler(req, res) {
     </div>
   </div>
   
-  <!-- Info Banner (optional) -->
-  <div class="info-banner" id="infoBanner" onclick="this.style.display='none'">
+  <!-- Info Banner (disabled) -->
+  <!-- <div class="info-banner" id="infoBanner" onclick="this.style.display='none'">
     💡 Tip: Bookmark this page for quick access
-  </div>
+  </div> -->
   
-  <!-- Warning Note about Google Banner -->
-  <div class="warning-note" id="warningNote">
+  <!-- Warning Note (disabled) -->
+  <!-- <div class="warning-note" id="warningNote">
     ⚠️ You may see a Google warning on first load - click "Continue" to proceed
-  </div>
+  </div> -->
   
   <!-- Main iFrame -->
   <div class="iframe-container">
@@ -298,8 +298,8 @@ export default async function handler(req, res) {
     // Configuration
     const CONFIG = {
       loadingTimeout: 3000,  // Hide loading after 3 seconds
-      showInfoBanner: true,
-      showWarningNote: true,
+      showInfoBanner: false,  // Disabled - no bookmark tip
+      showWarningNote: false,  // Disabled - no warning text
       warningDuration: 10000  // Show warning for 10 seconds
     };
     
@@ -308,11 +308,11 @@ export default async function handler(req, res) {
       console.log('Apps Script iframe loaded');
       hideLoading();
       
-      // Show info banner after load
+      // Show info banner after load (disabled)
       if (CONFIG.showInfoBanner) {
-        setTimeout(() => {
-          document.getElementById('infoBanner').classList.add('show');
-        }, 2000);
+        // setTimeout(() => {
+        //   document.getElementById('infoBanner').classList.add('show');
+        // }, 2000);
       }
     }
     
@@ -342,20 +342,20 @@ export default async function handler(req, res) {
     // Auto-hide loading after timeout (in case onload doesn't fire)
     setTimeout(hideLoading, CONFIG.loadingTimeout);
     
-    // Show warning note about Google banner
+    // Show warning note about Google banner (disabled)
     if (CONFIG.showWarningNote) {
       // Check if first visit (using sessionStorage)
-      if (!sessionStorage.getItem('warned-${slug}')) {
-        setTimeout(() => {
-          document.getElementById('warningNote').classList.add('show');
-          sessionStorage.setItem('warned-${slug}', 'true');
-          
-          // Auto-hide warning after duration
-          setTimeout(() => {
-            document.getElementById('warningNote').style.display = 'none';
-          }, CONFIG.warningDuration);
-        }, 1000);
-      }
+      // if (!sessionStorage.getItem('warned-${slug}')) {
+      //   setTimeout(() => {
+      //     document.getElementById('warningNote').classList.add('show');
+      //     sessionStorage.setItem('warned-${slug}', 'true');
+      //     
+      //     // Auto-hide warning after duration
+      //     setTimeout(() => {
+      //       document.getElementById('warningNote').style.display = 'none';
+      //     }, CONFIG.warningDuration);
+      //   }, 1000);
+      // }
     }
     
     // Handle messages from iframe (if needed)
