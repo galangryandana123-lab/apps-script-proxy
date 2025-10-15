@@ -145,9 +145,13 @@ export default async function handler(req, res) {
         const scriptBase = APPS_SCRIPT_URL.replace('/exec', '');
         const scriptDomain = 'script.google.com';
         
+        // Extract nonce from CSP for inline script injection
+        const nonceMatch = body.match(/nonce-([A-Za-z0-9_\-]+)/);
+        const nonce = nonceMatch ? nonceMatch[1] : '';
+        
         // Inject JavaScript shim to override window.location and XMLHttpRequest
         const locationShim = `
-<script>
+<script${nonce ? ` nonce="${nonce}"` : ''}>
 (function() {
   const scriptBase = '${scriptBase}';
   const proxySlug = '${slug}';
