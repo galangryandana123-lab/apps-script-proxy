@@ -143,12 +143,7 @@ export default async function handler(req, res) {
       if (contentType.includes('text/html') && typeof body === 'string') {
         const proxyHost = req.headers.host;
         const scriptBase = APPS_SCRIPT_URL.replace('/exec', '');
-        
-        // Inject base tag to fix all relative URLs
-        body = body.replace(
-          /<head[^>]*>/i,
-          `$&\n<base href="${scriptBase}/">`
-        );
+        const scriptDomain = 'script.google.com';
         
         // Replace proxy domain URLs with Apps Script base
         const proxyPattern = new RegExp(
@@ -164,24 +159,29 @@ export default async function handler(req, res) {
           return scriptBase + path;
         });
         
-        // Fix relative URLs to absolute
+        // Fix ALL relative URLs starting with / to absolute Apps Script URLs
         body = body.replace(
-          /(['"])(\/(?:static|macros|warden|a)[^"']*)/g,
-          `$1${scriptBase}$2`
+          /(['"\(])(\/[^"'\)\s][^"'\)]*)/g,
+          (match, prefix, url) => {
+            // Skip if already absolute or protocol-relative
+            if (url.match(/^\/\//)) return match;
+            // Convert to absolute Apps Script URL
+            return prefix + scriptBase + url;
+          }
         );
         
-        // Fix src and href attributes that might be relative
+        // Fix action and data-url attributes
         body = body.replace(
-          /(src|href)=["'](?!https?:\/\/|\/\/)([^"']+)["']/gi,
+          /(action|data-url|data-href)=["']([^"']+)["']/gi,
           (match, attr, url) => {
-            if (url.startsWith('/')) {
+            if (url.startsWith('/') && !url.startsWith('//')) {
               return `${attr}="${scriptBase}${url}"`;
             }
             return match;
           }
         );
         
-        console.log('[Proxy] Rewrote resource URLs in HTML with base tag');
+        console.log('[Proxy] Rewrote all relative URLs to absolute Apps Script URLs');
       }
     } else {
       body = await response.arrayBuffer();
