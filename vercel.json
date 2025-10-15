@@ -4,7 +4,7 @@
   "rewrites": [
     {
       "source": "/((?!api|_next|favicon.ico|index.html).*)",
-      "destination": "/api/[...slug]"
+      "destination": "/api/proxy?slug=$1"
     }
   ],
   "headers": [
