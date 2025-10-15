@@ -145,6 +145,69 @@ export default async function handler(req, res) {
         const scriptBase = APPS_SCRIPT_URL.replace('/exec', '');
         const scriptDomain = 'script.google.com';
         
+        // Inject JavaScript shim to override window.location and XMLHttpRequest
+        const locationShim = `
+<script>
+(function() {
+  const scriptBase = '${scriptBase}';
+  const proxySlug = '${slug}';
+  
+  // Override XMLHttpRequest to rewrite URLs
+  const originalOpen = XMLHttpRequest.prototype.open;
+  XMLHttpRequest.prototype.open = function(method, url, ...args) {
+    if (typeof url === 'string' && url.startsWith('/') && !url.startsWith('//')) {
+      // Rewrite relative URL to Apps Script base
+      url = scriptBase + url;
+      console.log('[Proxy Shim] XHR rewritten to:', url);
+    }
+    return originalOpen.call(this, method, url, ...args);
+  };
+  
+  // Override fetch to rewrite URLs
+  const originalFetch = window.fetch;
+  window.fetch = function(url, ...args) {
+    if (typeof url === 'string' && url.startsWith('/') && !url.startsWith('//')) {
+      url = scriptBase + url;
+      console.log('[Proxy Shim] Fetch rewritten to:', url);
+    }
+    return originalFetch.call(this, url, ...args);
+  };
+  
+  // Override window.location for reading
+  const originalLocation = window.location;
+  const scriptUrl = new URL(scriptBase + '/exec');
+  
+  Object.defineProperty(window, 'location', {
+    get: function() {
+      return new Proxy(originalLocation, {
+        get: function(target, prop) {
+          if (prop === 'origin') return scriptUrl.origin;
+          if (prop === 'hostname') return scriptUrl.hostname;
+          if (prop === 'host') return scriptUrl.host;
+          if (prop === 'protocol') return scriptUrl.protocol;
+          if (prop === 'pathname') return scriptUrl.pathname;
+          if (prop === 'href') return scriptBase + '/exec' + target.search + target.hash;
+          if (prop === 'toString') return function() { return scriptBase + '/exec'; };
+          return target[prop];
+        }
+      });
+    },
+    set: function(value) {
+      // Allow location.href = ... to work
+      window.location.href = value;
+    },
+    configurable: true
+  });
+  
+  console.log('[Proxy Shim] Initialized - XHR/Fetch/Location overridden');
+  console.log('[Proxy Shim] All requests will go to:', scriptBase);
+})();
+</script>
+`;
+        
+        // Inject location shim at the beginning of <head>
+        body = body.replace(/<head[^>]*>/i, `$&${locationShim}`);
+        
         // Replace proxy domain URLs with Apps Script base
         const proxyPattern = new RegExp(
           `https?://${proxyHost.replace(/\./g, '\\.')}/${slug}(/[^"'\\s>]*)`,
