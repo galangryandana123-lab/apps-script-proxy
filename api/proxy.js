@@ -104,19 +104,9 @@ export default async function handler(req, res) {
     // Reconstruct query string (with leading ? if not empty)
     const queryString = searchParams.toString() ? '?' + searchParams.toString() : '';
     
-    // HACK: Mock /wardeninit response (Apps Script rejects our proxy requests)
-    if (subPath === '/wardeninit') {
-      console.log('[Proxy] Mocking /wardeninit response (bypassing 400 error)');
-      // Return fake success response matching Apps Script format
-      // Real error: [[["er",null,null,null,null,400,...],["di",35],["e",3,...]]]
-      // Try complete success with multiple tuples like real response
-      const mockResponse = ")]}'\\n[[[\"di\",1],[\"e\",4]]]";
-      res.setHeader('Content-Type', 'application/json; charset=utf-8');
-      res.setHeader('Access-Control-Allow-Origin', '*');
-      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-      res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-      return res.send(mockResponse);
-    }
+    // Note: /wardeninit removed - will proxy normally and likely get 400
+    // App may handle 400 error gracefully and continue
+    // If not, we need different approach
     
     // Build target URL
     let targetUrl;
