@@ -11,6 +11,14 @@ import { kv } from '@vercel/kv';
  * 4. Professional appearance
  */
 
+// Disable body parsing - we'll handle it manually
+export const config = {
+  api: {
+    bodyParser: true, // Enable body parsing
+    sizeLimit: '10mb'
+  }
+};
+
 export default async function handler(req, res) {
   try {
     // Extract slug from query parameter (from rewrite: ?slug=supplier-gathering/wardeninit)
@@ -124,14 +132,31 @@ export default async function handler(req, res) {
         fetchOptions.headers['Content-Type'] = req.headers['content-type'];
       }
       
+      // Read body - Vercel provides body in different formats
+      let bodyContent = null;
+      
       if (req.body) {
         if (typeof req.body === 'string') {
-          fetchOptions.body = req.body;
+          bodyContent = req.body;
         } else if (Buffer.isBuffer(req.body)) {
-          fetchOptions.body = req.body;
-        } else {
-          fetchOptions.body = JSON.stringify(req.body);
+          bodyContent = req.body;
+        } else if (typeof req.body === 'object') {
+          // If body is already parsed as object, stringify it
+          const contentType = req.headers['content-type'] || '';
+          if (contentType.includes('application/json')) {
+            bodyContent = JSON.stringify(req.body);
+          } else {
+            // For form-urlencoded, convert object to query string
+            bodyContent = Object.keys(req.body)
+              .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(req.body[key])}`)
+              .join('&');
+          }
         }
+      }
+      
+      if (bodyContent) {
+        fetchOptions.body = bodyContent;
+        console.log(`[Proxy] Body preview: ${bodyContent.substring(0, 200)}`);
       }
     }
     
