@@ -304,34 +304,37 @@ export default async function handler(req, res) {
           return scriptBase + path;
         });
         
-        // Fix ALL relative URLs starting with / to absolute Apps Script URLs
+        // Fix relative URLs - rewrite to proxy path (not direct script.google.com)
+        // This ensures scripts/assets load through proxy with correct referer
         body = body.replace(
           /(['"\(])(\/[^"'\)\s][^"'\)]*)/g,
           (match, prefix, url) => {
             // Skip if already absolute or protocol-relative
             if (url.match(/^\/\//)) return match;
-            // Convert to absolute Apps Script URL
-            return prefix + scriptBase + url;
+            // Rewrite to proxy path: /slug/static/... instead of script.google.com/static/...
+            // This makes browser load through our proxy with correct referer headers
+            return prefix + `/${slug}` + url;
           }
         );
         
-        // Fix ALL src and href attributes specifically (catch edge cases)
+        // Fix ALL src and href attributes - rewrite to proxy path
         body = body.replace(
           /(src|href)=(["'])([^"']+)\2/gi,
           (match, attr, quote, url) => {
             if (url.startsWith('/') && !url.startsWith('//') && !url.startsWith('http')) {
-              return `${attr}=${quote}${scriptBase}${url}${quote}`;
+              // Rewrite to proxy path
+              return `${attr}=${quote}/${slug}${url}${quote}`;
             }
             return match;
           }
         );
         
-        // Fix action and data attributes
+        // Fix action and data attributes - rewrite to proxy path
         body = body.replace(
           /(action|data-url|data-href)=["']([^"']+)["']/gi,
           (match, attr, url) => {
             if (url.startsWith('/') && !url.startsWith('//')) {
-              return `${attr}="${scriptBase}${url}"`;
+              return `${attr}="/${slug}${url}"`;
             }
             return match;
           }
