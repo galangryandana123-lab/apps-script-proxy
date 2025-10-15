@@ -149,47 +149,39 @@ export default async function handler(req, res) {
         const nonceMatch = body.match(/nonce-([A-Za-z0-9_\-]+)/);
         const nonce = nonceMatch ? nonceMatch[1] : '';
         
-        // Inject JavaScript shim to override window.location and XMLHttpRequest
+        // Inject JavaScript shim to handle URL construction
+        // IMPORTANT: Do NOT rewrite XHR/Fetch to script.google.com (CORS!)
+        // Instead, let them go through proxy server-side
         const locationShim = `
 <script${nonce ? ` nonce="${nonce}"` : ''}>
 (function() {
-  const scriptBase = '${scriptBase}';
   const proxySlug = '${slug}';
+  const proxyBase = window.location.origin + '/' + proxySlug;
   
-  // Override XMLHttpRequest to rewrite URLs
+  // Override XMLHttpRequest to ensure URLs stay on proxy domain
   const originalOpen = XMLHttpRequest.prototype.open;
   XMLHttpRequest.prototype.open = function(method, url, ...args) {
     if (typeof url === 'string' && url.startsWith('/') && !url.startsWith('//')) {
-      // Rewrite relative URL to Apps Script base
-      url = scriptBase + url;
-      console.log('[Proxy Shim] XHR rewritten to:', url);
+      // Keep URL on proxy domain for server-side proxying (avoid CORS!)
+      url = proxyBase + url;
+      console.log('[Proxy Shim] XHR routed through proxy:', url);
     }
     return originalOpen.call(this, method, url, ...args);
   };
   
-  // Override fetch to rewrite URLs
+  // Override fetch to ensure URLs stay on proxy domain
   const originalFetch = window.fetch;
   window.fetch = function(url, ...args) {
     if (typeof url === 'string' && url.startsWith('/') && !url.startsWith('//')) {
-      url = scriptBase + url;
-      console.log('[Proxy Shim] Fetch rewritten to:', url);
+      // Keep URL on proxy domain for server-side proxying (avoid CORS!)
+      url = proxyBase + url;
+      console.log('[Proxy Shim] Fetch routed through proxy:', url);
     }
     return originalFetch.call(this, url, ...args);
   };
   
-  // Override location.toString() for URL construction
-  try {
-    const originalToString = window.location.toString;
-    window.location.toString = function() {
-      return scriptBase + '/exec';
-    };
-  } catch(e) {
-    // Location override may fail in some browsers - that's OK
-    console.log('[Proxy Shim] Location override skipped (browser restriction)');
-  }
-  
-  console.log('[Proxy Shim] Initialized - XHR/Fetch overridden');
-  console.log('[Proxy Shim] All requests will go to:', scriptBase);
+  console.log('[Proxy Shim] Initialized - Requests will be proxied server-side');
+  console.log('[Proxy Shim] Proxy base:', proxyBase);
 })();
 </script>
 `;
