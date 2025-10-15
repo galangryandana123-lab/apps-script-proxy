@@ -201,6 +201,30 @@ export default async function handler(req, res) {
         // Inject shim at beginning of head (must run before any XHR calls)
         body = body.replace(/<head[^>]*>/i, `$&${locationShim}`);
         
+        // Defer inline scripts that call goog.script.init until goog is loaded
+        body = body.replace(
+          /(<script[^>]*>)\s*\(function\(\)\s*\{[\s\S]*?goog\.script\.init\([\s\S]*?\}\)\(\);?\s*<\/script>/g,
+          (match) => {
+            // Extract the content
+            const scriptContent = match.match(/\(function\(\)\s*\{([\s\S]*)\}\)\(\);?/)[1];
+            // Wrap dengan goog check
+            return `<script>
+(function() {
+  function initWhenReady() {
+    if (typeof goog === 'undefined' || !goog.script || !goog.script.init) {
+      console.log('[Proxy] Waiting for goog to load...');
+      setTimeout(initWhenReady, 100);
+      return;
+    }
+    console.log('[Proxy] goog loaded, initializing...');
+    ${scriptContent}
+  }
+  initWhenReady();
+})();
+</script>`;
+          }
+        );
+        
         // Replace proxy domain URLs with Apps Script base
         const proxyPattern = new RegExp(
           `https?://${proxyHost.replace(/\./g, '\\.')}/${slug}(/[^"'\\s>]*)`,
