@@ -163,19 +163,34 @@ export default async function handler(req, res) {
     
     // Fetch from Apps Script
     console.log(`[Proxy] Fetching: ${targetUrl}`);
-    console.log(`[Proxy] Method: ${req.method}, Content-Type: ${fetchOptions.headers['Content-Type']}`);
-    console.log(`[Proxy] Body length: ${fetchOptions.body ? fetchOptions.body.length : 0}`);
+    console.log(`[Proxy] Method: ${req.method}`);
+    console.log(`[Proxy] Headers:`, JSON.stringify(fetchOptions.headers, null, 2));
+    console.log(`[Proxy] Body type: ${typeof fetchOptions.body}, length: ${fetchOptions.body ? fetchOptions.body.length : 0}`);
+    if (fetchOptions.body) {
+      console.log(`[Proxy] Body preview: ${fetchOptions.body.substring(0, 500)}`);
+    }
     
-    const response = await fetch(targetUrl, fetchOptions);
+    let response;
+    try {
+      response = await fetch(targetUrl, fetchOptions);
+      console.log(`[Proxy] Response status: ${response.status}`);
+    } catch (fetchError) {
+      console.error(`[Proxy] Fetch failed:`, fetchError);
+      throw fetchError;
+    }
     
     // Get response body
     const contentType = response.headers.get('content-type') || '';
+    console.log(`[Proxy] Response content-type: ${contentType}`);
     let body;
     
-    if (contentType.includes('application/json')) {
-      body = await response.json();
-    } else if (contentType.includes('text/')) {
-      body = await response.text();
+    try {
+      if (contentType.includes('application/json')) {
+        body = await response.json();
+        console.log(`[Proxy] JSON response length: ${JSON.stringify(body).length}`);
+      } else if (contentType.includes('text/')) {
+        body = await response.text();
+        console.log(`[Proxy] Text response length: ${body.length}`);
       
       // Rewrite HTML to fix resource URLs
       if (contentType.includes('text/html') && typeof body === 'string') {
@@ -284,6 +299,11 @@ export default async function handler(req, res) {
       }
     } else {
       body = await response.arrayBuffer();
+      console.log(`[Proxy] Binary response length: ${body.byteLength}`);
+    }
+    } catch (bodyError) {
+      console.error(`[Proxy] Error parsing response body:`, bodyError);
+      throw bodyError;
     }
     
     // Forward response headers
