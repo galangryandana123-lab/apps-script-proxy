@@ -123,19 +123,34 @@ export default async function handler(req, res) {
       redirect: 'follow'
     };
     
-    // Forward ALL headers from client, except:
-    const skipHeaders = ['host', 'connection', 'content-length', 'content-encoding', 'transfer-encoding'];
+    // Forward headers from client, excluding problematic ones
+    const skipHeaders = [
+      'host', 'connection', 'content-length', 'content-encoding', 'transfer-encoding',
+      // Skip all Vercel-specific headers that leak proxy info
+      'x-vercel-', 'x-forwarded-', 'x-real-ip', 'x-same-domain', 'forwarded',
+      'x-vercel-id', 'x-vercel-deployment-url', 'x-vercel-forwarded-for', 
+      'x-vercel-proxied-for', 'x-vercel-proxy-signature', 'x-vercel-oidc-token',
+      'x-vercel-ip-', 'x-vercel-ja4-digest', 'x-vercel-internal-',
+      // Skip origin/referer - we'll override with correct values
+      'origin', 'referer'
+    ];
+    
     for (const [key, value] of Object.entries(req.headers)) {
-      if (!skipHeaders.includes(key.toLowerCase())) {
+      const lowerKey = key.toLowerCase();
+      // Skip if matches any skip pattern
+      const shouldSkip = skipHeaders.some(pattern => 
+        lowerKey === pattern || lowerKey.startsWith(pattern)
+      );
+      if (!shouldSkip) {
         fetchOptions.headers[key] = value;
       }
     }
     
-    // Override Origin and Referer to Apps Script domain (for validation)
-    fetchOptions.headers['Origin'] = scriptBase + '/exec';
-    fetchOptions.headers['Referer'] = scriptBase + '/exec';
+    // Set correct Origin and Referer (case-sensitive, will override any existing)
+    fetchOptions.headers['origin'] = scriptBase + '/exec';
+    fetchOptions.headers['referer'] = scriptBase + '/exec';
     
-    console.log(`[Proxy] Forwarding ${Object.keys(fetchOptions.headers).length} headers`);
+    console.log(`[Proxy] Forwarding ${Object.keys(fetchOptions.headers).length} headers (cleaned)`);
     
     // Forward POST/PUT/PATCH body if present
     if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
