@@ -76,13 +76,41 @@
       margin-top: 8px;
       font-size: 0.85rem;
       color: #666;
-      display: flex;
-      align-items: center;
-      gap: 6px;
+      line-height: 1.6;
     }
 
     .help-text strong {
       color: #e74c3c;
+    }
+
+    .help-text code {
+      background: #f5f5f5;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: 'Monaco', 'Courier New', monospace;
+      font-size: 0.9em;
+      color: #667eea;
+    }
+
+    .warning-box {
+      background: #fff3cd;
+      border-left: 4px solid #ffc107;
+      padding: 12px 16px;
+      border-radius: 6px;
+      margin-top: 8px;
+      line-height: 1.6;
+    }
+
+    .warning-box strong {
+      color: #856404;
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    .warning-box p {
+      margin: 0;
+      color: #856404;
+      font-size: 0.9rem;
     }
 
     button {
@@ -270,8 +298,9 @@
           placeholder="https://script.google.com/macros/s/.../exec"
           required
         >
-        <div class="help-text">
-          <strong>⚠️ Penting:</strong> Gunakan URL <strong>deployment</strong> yang mengandung <code>/macros/s/</code> dan berakhir dengan <code>/exec</code>
+        <div class="warning-box">
+          <strong>⚠️ Penting:</strong>
+          <p>Gunakan URL <strong>deployment</strong> yang mengandung <code>/macros/s/</code> dan berakhir dengan <code>/exec</code></p>
         </div>
       </div>
 
