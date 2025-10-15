@@ -107,10 +107,15 @@ export default async function handler(req, res) {
     // HACK: Mock /wardeninit response (Apps Script rejects our proxy requests)
     if (subPath === '/wardeninit') {
       console.log('[Proxy] Mocking /wardeninit response (bypassing 400 error)');
-      // Return fake success response with XSSI prefix like Apps Script does
+      // Return fake success response matching Apps Script format
+      // Based on actual response structure: [[["di",35],["e",3,null,null,88]]]
+      // Success response: just the "di" (dialog init?) without error
+      const mockResponse = ")]}'\\n[[[\"di\",1]]]";
       res.setHeader('Content-Type', 'application/json; charset=utf-8');
       res.setHeader('Access-Control-Allow-Origin', '*');
-      return res.send(")]}'\\n[[]]");
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+      return res.send(mockResponse);
     }
     
     // Build target URL
