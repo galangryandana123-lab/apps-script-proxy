@@ -1,0 +1,22 @@
+{
+  "name": "supplier-gathering-proxy",
+  "version": "1.0.0",
+  "description": "Reverse proxy for PT PLN Nusantara Power Supplier Gathering questionnaire",
+  "main": "api/proxy.js",
+  "scripts": {
+    "dev": "vercel dev",
+    "deploy": "vercel --prod"
+  },
+  "keywords": [
+    "proxy",
+    "vercel",
+    "serverless",
+    "apps-script"
+  ],
+  "author": "Galang Ryandana",
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {
+    "vercel": "^32.0.0"
+  }
+}
