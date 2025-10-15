@@ -115,25 +115,27 @@ export default async function handler(req, res) {
       targetUrl = scriptBase + subPath + queryString;
     }
     
-    // Prepare fetch options with proper headers
+    // Prepare fetch options - forward ALL client headers except problematic ones
     const scriptBase = APPS_SCRIPT_URL.replace('/exec', '');
     const fetchOptions = {
       method: req.method,
-      headers: {
-        'User-Agent': req.headers['user-agent'] || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Accept': req.headers['accept'] || '*/*',
-        'Accept-Language': req.headers['accept-language'] || 'id,en;q=0.9',
-        'Origin': scriptBase + '/exec',
-        'Referer': scriptBase + '/exec',
-      },
-      redirect: 'follow',
-      credentials: 'include'
+      headers: {},
+      redirect: 'follow'
     };
     
-    // Forward cookies if present
-    if (req.headers.cookie) {
-      fetchOptions.headers['Cookie'] = req.headers.cookie;
+    // Forward ALL headers from client, except:
+    const skipHeaders = ['host', 'connection', 'content-length', 'content-encoding', 'transfer-encoding'];
+    for (const [key, value] of Object.entries(req.headers)) {
+      if (!skipHeaders.includes(key.toLowerCase())) {
+        fetchOptions.headers[key] = value;
+      }
     }
+    
+    // Override Origin and Referer to Apps Script domain (for validation)
+    fetchOptions.headers['Origin'] = scriptBase + '/exec';
+    fetchOptions.headers['Referer'] = scriptBase + '/exec';
+    
+    console.log(`[Proxy] Forwarding ${Object.keys(fetchOptions.headers).length} headers`);
     
     // Forward POST/PUT/PATCH body if present
     if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
