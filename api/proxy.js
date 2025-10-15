@@ -115,11 +115,19 @@ export default async function handler(req, res) {
       // Main page: /{slug}
       targetUrl = APPS_SCRIPT_URL + queryString;
       console.log(`[Proxy] Main page request, target: ${targetUrl}`);
-    } else {
-      // Sub-paths: /{slug}/static/..., etc
+    } else if (subPath === '/wardeninit') {
+      // Special handling for wardeninit - it's under /exec/wardeninit
+      targetUrl = APPS_SCRIPT_URL + '/wardeninit' + queryString;
+      console.log(`[Proxy] Wardeninit request, target: ${targetUrl}`);
+    } else if (subPath.startsWith('/static/') || subPath.startsWith('/macros/')) {
+      // Static resources - directly under script base
       const scriptBase = APPS_SCRIPT_URL.replace('/exec', '');
       targetUrl = scriptBase + subPath + queryString;
-      console.log(`[Proxy] Sub-path request, scriptBase: ${scriptBase}, subPath: ${subPath}, target: ${targetUrl}`);
+      console.log(`[Proxy] Static resource request, scriptBase: ${scriptBase}, subPath: ${subPath}, target: ${targetUrl}`);
+    } else {
+      // Other paths - assume under /exec
+      targetUrl = APPS_SCRIPT_URL + subPath + queryString;
+      console.log(`[Proxy] Sub-path request under /exec, target: ${targetUrl}`);
     }
     
     // Prepare fetch options - forward ALL client headers except problematic ones
@@ -134,7 +142,7 @@ export default async function handler(req, res) {
     const skipHeaders = [
       'host', 'connection', 'content-length', 'content-encoding', 'transfer-encoding',
       // Skip all Vercel-specific headers that leak proxy info
-      'x-vercel-', 'x-forwarded-', 'x-real-ip', 'x-same-domain', 'forwarded',
+      'x-vercel-', 'x-forwarded-', 'x-real-ip', 'forwarded',
       'x-vercel-id', 'x-vercel-deployment-url', 'x-vercel-forwarded-for', 
       'x-vercel-proxied-for', 'x-vercel-proxy-signature', 'x-vercel-oidc-token',
       'x-vercel-ip-', 'x-vercel-ja4-digest', 'x-vercel-internal-',
@@ -157,8 +165,13 @@ export default async function handler(req, res) {
     }
     
     // Set correct Origin and Referer (case-sensitive, will override any existing)
-    fetchOptions.headers['origin'] = scriptBase + '/exec';
-    fetchOptions.headers['referer'] = scriptBase + '/exec';
+    fetchOptions.headers['origin'] = APPS_SCRIPT_URL;
+    fetchOptions.headers['referer'] = APPS_SCRIPT_URL;
+    
+    // Preserve x-same-domain header if present (required for Google Apps Script internal calls)
+    if (req.headers['x-same-domain']) {
+      fetchOptions.headers['x-same-domain'] = req.headers['x-same-domain'];
+    }
     
     console.log(`[Proxy] Forwarding ${Object.keys(fetchOptions.headers).length} headers (cleaned)`);
     
