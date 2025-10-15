@@ -8,20 +8,29 @@
  * 4. Professional branding
  */
 
-// Your Google Apps Script Web App URL
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyjIrwkM2lA8ov7qac0g2C-pLw8gcp-DO_xy-wTZ0Uigd7r-ijvNIhQv_SgLP5eIOy7/exec';
+// Your Google Apps Script Web App URL (base URL without /exec)
+const APPS_SCRIPT_BASE = 'https://script.google.com/macros/s/AKfycbyjIrwkM2lA8ov7qac0g2C-pLw8gcp-DO_xy-wTZ0Uigd7r-ijvNIhQv_SgLP5eIOy7';
 
 module.exports = async (req, res) => {
   try {
     // Log request for debugging
     console.log(`[Proxy] ${req.method} ${req.url}`);
     
-    // Build target URL with query parameters
-    const targetUrl = new URL(APPS_SCRIPT_URL);
+    // Parse request URL to get path and query
+    const reqUrl = new URL(req.url, `https://${req.headers.host}`);
+    const path = reqUrl.pathname;
+    
+    // Build target URL: append path to base (or use /exec for root)
+    let targetPath = path;
+    if (path === '/' || path === '') {
+      targetPath = '/exec';
+    }
+    
+    const targetUrl = new URL(targetPath, APPS_SCRIPT_BASE);
     
     // Forward all query parameters
-    Object.keys(req.query).forEach(key => {
-      targetUrl.searchParams.append(key, req.query[key]);
+    reqUrl.searchParams.forEach((value, key) => {
+      targetUrl.searchParams.append(key, value);
     });
     
     // Prepare fetch options
