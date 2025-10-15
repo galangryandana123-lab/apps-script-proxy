@@ -20,12 +20,14 @@ export const config = {
 };
 
 export default async function handler(req, res) {
+  // Extract slug from query parameter (from rewrite: ?slug=supplier-gathering/wardeninit)
+  const slugParam = req.query.slug || '';
+  const parts = slugParam.split('/').filter(Boolean);
+  const slug = parts[0]; // First segment is the actual slug
+  const subPath = parts.length > 1 ? '/' + parts.slice(1).join('/') : '';
+  let targetUrl = ''; // Declare here for error logging
+  
   try {
-    // Extract slug from query parameter (from rewrite: ?slug=supplier-gathering/wardeninit)
-    const slugParam = req.query.slug || '';
-    const parts = slugParam.split('/').filter(Boolean);
-    const slug = parts[0]; // First segment is the actual slug
-    const subPath = parts.length > 1 ? '/' + parts.slice(1).join('/') : '';
 
     // Log request
     console.log(`[Proxy] ${req.method} /${slugParam}`);
@@ -186,7 +188,17 @@ export default async function handler(req, res) {
     
     try {
       if (contentType.includes('application/json')) {
-        body = await response.json();
+        // Get raw text first to handle XSSI protection prefix
+        let rawText = await response.text();
+        console.log(`[Proxy] Raw JSON response preview: ${rawText.substring(0, 100)}`);
+        
+        // Strip Google Apps Script XSSI protection prefix: )]}'
+        if (rawText.startsWith(")]}'\n")) {
+          rawText = rawText.substring(5);
+          console.log(`[Proxy] Stripped XSSI prefix )]}'`);
+        }
+        
+        body = JSON.parse(rawText);
         console.log(`[Proxy] JSON response length: ${JSON.stringify(body).length}`);
       } else if (contentType.includes('text/')) {
         body = await response.text();
