@@ -311,6 +311,8 @@ export default async function handler(req, res) {
           (match, prefix, url) => {
             // Skip if already absolute or protocol-relative
             if (url.match(/^\/\//)) return match;
+            // Skip if already has slug prefix (avoid duplication)
+            if (url.startsWith(`/${slug}/`)) return match;
             // Rewrite to proxy path: /slug/static/... instead of script.google.com/static/...
             // This makes browser load through our proxy with correct referer headers
             return prefix + `/${slug}` + url;
@@ -322,6 +324,8 @@ export default async function handler(req, res) {
           /(src|href)=(["'])([^"']+)\2/gi,
           (match, attr, quote, url) => {
             if (url.startsWith('/') && !url.startsWith('//') && !url.startsWith('http')) {
+              // Skip if already has slug prefix
+              if (url.startsWith(`/${slug}/`)) return match;
               // Rewrite to proxy path
               return `${attr}=${quote}/${slug}${url}${quote}`;
             }
@@ -334,6 +338,8 @@ export default async function handler(req, res) {
           /(action|data-url|data-href)=["']([^"']+)["']/gi,
           (match, attr, url) => {
             if (url.startsWith('/') && !url.startsWith('//')) {
+              // Skip if already has slug prefix
+              if (url.startsWith(`/${slug}/`)) return match;
               return `${attr}="/${slug}${url}"`;
             }
             return match;
