@@ -128,6 +128,9 @@ export default async function handler(req, res) {
     
     // Fetch from Apps Script
     console.log(`[Proxy] Fetching: ${targetUrl}`);
+    console.log(`[Proxy] Method: ${req.method}, Content-Type: ${fetchOptions.headers['Content-Type']}`);
+    console.log(`[Proxy] Body length: ${fetchOptions.body ? fetchOptions.body.length : 0}`);
+    
     const response = await fetch(targetUrl, fetchOptions);
     
     // Get response body
@@ -289,10 +292,15 @@ export default async function handler(req, res) {
     
   } catch (error) {
     console.error('[Proxy] Error:', error);
+    console.error('[Proxy] Error stack:', error.stack);
+    console.error('[Proxy] Slug:', slug);
+    console.error('[Proxy] SubPath:', subPath);
+    console.error('[Proxy] Target URL:', targetUrl);
     
     res.status(500).json({
       error: 'Proxy Error',
       message: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
       timestamp: new Date().toISOString()
     });
   }
