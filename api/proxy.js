@@ -257,7 +257,14 @@ export default async function handler(req, res) {
     // Forward response headers
     const forwardHeaders = {};
     response.headers.forEach((value, key) => {
-      if (!['content-encoding', 'transfer-encoding', 'connection'].includes(key.toLowerCase())) {
+      const lowerKey = key.toLowerCase();
+      if (!['content-encoding', 'transfer-encoding', 'connection'].includes(lowerKey)) {
+        // Remove CSP for HTML responses to allow our injected shim script
+        if (lowerKey === 'content-security-policy' && contentType.includes('text/html')) {
+          // Skip CSP header - our shim needs to run without CSP restrictions
+          console.log('[Proxy] Removed CSP header to allow shim injection');
+          return; // Don't add this header
+        }
         forwardHeaders[key] = value;
       }
     });
