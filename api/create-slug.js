@@ -27,8 +27,8 @@ export default async function handler(req, res) {
       });
     }
 
-    // Validate Apps Script URL
-    if (!appsScriptUrl.match(/^https:\/\/script\.google\.com\/macros\/s\/.+\/exec$/)) {
+    // Validate Apps Script URL (allow parameters at the end)
+    if (!appsScriptUrl.match(/^https:\/\/script\.google\.com\/macros\/s\/.+\/exec(\?.*)?$/)) {
       return res.status(400).json({ 
         error: 'URL Google Apps Script tidak valid' 
       });

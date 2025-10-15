@@ -797,8 +797,8 @@
       const appName = document.getElementById('appName').value;
       const appsScriptUrl = document.getElementById('appsScriptUrl').value;
       
-      // Validate Apps Script URL
-      if (!appsScriptUrl.match(/^https:\/\/script\.google\.com\/macros\/s\/.+\/exec$/)) {
+      // Validate Apps Script URL (allow parameters at the end)
+      if (!appsScriptUrl.match(/^https:\/\/script\.google\.com\/macros\/s\/.+\/exec(\?.*)?$/)) {
         showToast('URL Google Apps Script tidak valid!', 'error');
         return;
       }
