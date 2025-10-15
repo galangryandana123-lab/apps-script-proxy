@@ -16,13 +16,20 @@ module.exports = async (req, res) => {
     // Log request for debugging
     console.log(`[Proxy] ${req.method} ${req.url}`);
     
-    // Build target URL with query parameters
-    const targetUrl = new URL(APPS_SCRIPT_URL);
+    // Parse full URL with path and query
+    const fullUrl = new URL(req.url, `https://${req.headers.host}`);
+    const path = fullUrl.pathname;
+    const queryString = fullUrl.search;
     
-    // Forward all query parameters
-    Object.keys(req.query).forEach(key => {
-      targetUrl.searchParams.append(key, req.query[key]);
-    });
+    // Build target URL - use path from request
+    let targetUrl;
+    if (path === '/' || path === '') {
+      targetUrl = APPS_SCRIPT_URL + queryString;
+    } else {
+      // For other paths like /wardeninit, append to base URL
+      const scriptBase = APPS_SCRIPT_URL.replace('/exec', '');
+      targetUrl = scriptBase + path + queryString;
+    }
     
     // Prepare fetch options
     // IMPORTANT: Don't forward Host header to prevent Google Apps Script 
@@ -37,15 +44,27 @@ module.exports = async (req, res) => {
       redirect: 'follow'
     };
     
-    // Forward POST body if present
-    if (req.method === 'POST' && req.body) {
-      fetchOptions.headers['Content-Type'] = req.headers['content-type'] || 'application/json';
-      fetchOptions.body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
+    // Forward POST/PUT body if present
+    if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
+      if (req.headers['content-type']) {
+        fetchOptions.headers['Content-Type'] = req.headers['content-type'];
+      }
+      
+      // Get raw body
+      if (req.body) {
+        if (typeof req.body === 'string') {
+          fetchOptions.body = req.body;
+        } else if (Buffer.isBuffer(req.body)) {
+          fetchOptions.body = req.body;
+        } else {
+          fetchOptions.body = JSON.stringify(req.body);
+        }
+      }
     }
     
     // Fetch from Apps Script
-    console.log(`[Proxy] Fetching: ${targetUrl.toString()}`);
-    const response = await fetch(targetUrl.toString(), fetchOptions);
+    console.log(`[Proxy] Fetching: ${targetUrl}`);
+    const response = await fetch(targetUrl, fetchOptions);
     
     // Get response body
     const contentType = response.headers.get('content-type') || '';
@@ -56,24 +75,33 @@ module.exports = async (req, res) => {
     } else if (contentType.includes('text/')) {
       body = await response.text();
       
-      // Rewrite HTML to fix static resource URLs
+      // Rewrite HTML to fix resource URLs
       if (contentType.includes('text/html') && typeof body === 'string') {
-        // Replace proxy domain URLs with script.google.com URLs
         const proxyHost = req.headers.host || 'shortener-proxy.vercel.app';
+        const scriptBase = APPS_SCRIPT_URL.replace('/exec', '');
         
-        // Replace all occurrences of proxy domain in static resource URLs
-        body = body.replace(
-          new RegExp(`https?://${proxyHost.replace('.', '\\.')}/static/`, 'g'),
-          'https://script.google.com/static/'
+        // Replace proxy domain with Apps Script base for all paths
+        // This fixes static resources (/static/) and API calls (/wardeninit, etc)
+        const proxyPattern = new RegExp(
+          `https?://${proxyHost.replace(/\./g, '\\.')}(/[^"'\\s>]*)`,
+          'g'
         );
         
-        // Also replace relative URLs
+        body = body.replace(proxyPattern, (match, path) => {
+          // Keep only the main HTML on proxy domain, redirect everything else to script.google.com
+          if (path === '/' || path === '' || path.startsWith('/?')) {
+            return match; // Keep main page on proxy
+          }
+          return scriptBase + path; // Redirect static/API to script.google.com
+        });
+        
+        // Also fix relative URLs
         body = body.replace(
-          /(['"])\/static\//g,
-          '$1https://script.google.com/static/'
+          /(['"])(\/(?:static|macros|warden)[^"']*)/g,
+          `$1${scriptBase}$2`
         );
         
-        console.log('[Proxy] Rewrote static resource URLs in HTML');
+        console.log('[Proxy] Rewrote resource URLs in HTML');
       }
     } else {
       body = await response.arrayBuffer();
