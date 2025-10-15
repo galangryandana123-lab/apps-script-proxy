@@ -2,6 +2,7 @@
   "name": "akses-shortener",
   "version": "2.0.0",
   "description": "Multi-tenant URL shortener for Google Apps Script - Remove warning banner with custom slugs",
+  "type": "module",
   "main": "api/[slug].js",
   "scripts": {
     "dev": "vercel dev",
