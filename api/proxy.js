@@ -94,9 +94,15 @@ export default async function handler(req, res) {
       console.error('[Proxy] Failed to increment access count:', err);
     });
 
-    // Parse query string
+    // Parse query string and remove internal 'slug' parameter
     const fullUrl = new URL(req.url, `https://${req.headers.host}`);
-    const queryString = fullUrl.search;
+    const searchParams = new URLSearchParams(fullUrl.search);
+    
+    // Remove internal routing parameter
+    searchParams.delete('slug');
+    
+    // Reconstruct query string (with leading ? if not empty)
+    const queryString = searchParams.toString() ? '?' + searchParams.toString() : '';
     
     // Build target URL
     let targetUrl;
