@@ -131,6 +131,9 @@ export default async function handler(req, res) {
       'x-vercel-id', 'x-vercel-deployment-url', 'x-vercel-forwarded-for', 
       'x-vercel-proxied-for', 'x-vercel-proxy-signature', 'x-vercel-oidc-token',
       'x-vercel-ip-', 'x-vercel-ja4-digest', 'x-vercel-internal-',
+      // Skip browser security headers that reveal proxy nature
+      'sec-fetch-site', 'sec-fetch-mode', 'sec-fetch-dest', 'sec-ch-ua',
+      'sec-ch-ua-mobile', 'sec-ch-ua-platform',
       // Skip origin/referer - we'll override with correct values
       'origin', 'referer'
     ];
