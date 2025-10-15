@@ -1,20 +1,6 @@
 {
   "version": 2,
   "name": "akses-shortener",
-  "rewrites": [
-    {
-      "source": "/",
-      "destination": "/public/index.html"
-    },
-    {
-      "source": "/api/:path*",
-      "destination": "/api/:path*"
-    },
-    {
-      "source": "/:match*",
-      "destination": "/api/:match*"
-    }
-  ],
   "headers": [
     {
       "source": "/(.*)",
