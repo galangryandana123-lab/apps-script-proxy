@@ -220,41 +220,18 @@ export default async function handler(req, res) {
   
   console.log('[Proxy Shim] Initialized - Requests will be proxied server-side');
   console.log('[Proxy Shim] Proxy base:', proxyBase);
-  
-  // Intercept goog.script.init to ensure it's called correctly
-  // We'll wrap it after warden.js loads via MutationObserver
-  var originalGoogInit = null;
-  var initAttempted = false;
-  
-  Object.defineProperty(window, 'goog', {
-    get: function() {
-      return this._goog;
-    },
-    set: function(value) {
-      console.log('[Proxy Shim] goog object set by warden.js');
-      this._goog = value;
-      // Wrap goog.script.init to log calls
-      if (value && value.script && value.script.init && !originalGoogInit) {
-        originalGoogInit = value.script.init;
-        value.script.init = function(data) {
-          console.log('[Proxy Shim] goog.script.init called!');
-          try {
-            return originalGoogInit.call(this, data);
-          } catch(e) {
-            console.error('[Proxy Shim] goog.script.init error:', e);
-            throw e;
-          }
-        };
-      }
-    },
-    configurable: true
-  });
 })();
 </script>
 `;
         
         // Inject shim at beginning of head (must run before any XHR calls)
         body = body.replace(/<head[^>]*>/i, `$&${locationShim}`);
+        
+        // Replace all goog.script.init calls with safe wrapper
+        body = body.replace(
+          /goog\.script\.init\(/g,
+          `(function(){ var maxRetries=20; var retryCount=0; function tryInit(data){ if(typeof goog!=='undefined'&&goog.script&&goog.script.init){ console.log('[Proxy] goog.script.init executing'); goog.script.init(data); }else{ retryCount++; if(retryCount<maxRetries){ console.log('[Proxy] Waiting for goog... retry '+retryCount); setTimeout(function(){tryInit(data);},100); }else{ console.error('[Proxy] goog failed to load after '+maxRetries+' retries'); } } } return tryInit; })()(`
+        );
         
         // Replace proxy domain URLs with Apps Script base
         const proxyPattern = new RegExp(
