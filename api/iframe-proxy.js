@@ -358,25 +358,10 @@ export default async function handler(req, res) {
       // }
     }
     
-    // Handle messages from iframe (if needed)
-    window.addEventListener('message', function(e) {
-      // Handle any postMessage from Apps Script if needed
-      console.log('Message from iframe:', e.data);
-    });
-    
     // Prevent iframe breakout attempts
     if (window.top !== window.self) {
       window.top.location = window.self.location;
     }
-    
-    // Page visibility API to pause/resume if needed
-    document.addEventListener('visibilitychange', function() {
-      if (document.hidden) {
-        console.log('Page hidden');
-      } else {
-        console.log('Page visible');
-      }
-    });
     
     // Analytics (optional)
     console.log('App loaded: ${slug}');
@@ -389,7 +374,7 @@ export default async function handler(req, res) {
     // Set response headers
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('X-Frame-Options', 'SAMEORIGIN');
-    res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=120');
+    res.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
     
     // Send HTML response
     res.status(200).send(html);

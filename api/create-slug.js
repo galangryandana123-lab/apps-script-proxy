@@ -53,9 +53,6 @@ export default async function handler(req, res) {
 
     await kv.set(`slug:${slug}`, mapping);
 
-    // Initialize access counter
-    await kv.set(`slug:${slug}:count`, 0);
-
     // Log creation
     console.log(`[Create Slug] Created: ${slug} -> ${appsScriptUrl}`);
 
