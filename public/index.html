@@ -17,17 +17,17 @@
     }
 
     :root {
-      --primary: #667eea;
-      --primary-dark: #5a67d8;
-      --primary-light: #7f9cf5;
-      --secondary: #764ba2;
-      --success: #48bb78;
+      --primary: #2f855a;
+      --primary-dark: #276749;
+      --primary-light: #68d391;
+      --secondary: #38a169;
+      --success: #38a169;
       --danger: #f56565;
       --warning: #ed8936;
-      --dark: #2d3748;
-      --gray: #718096;
-      --light: #f7fafc;
-      --border: #e2e8f0;
+      --dark: #1f2933;
+      --gray: #4a5568;
+      --light: #f3f7f3;
+      --border: #d9eadf;
     }
 
     body {
@@ -174,7 +174,7 @@
     #generatedSlug {
       margin-top: 20px;
       padding: 20px;
-      background: linear-gradient(135deg, #667eea15, #764ba215);
+      background: linear-gradient(135deg, #2f855a15, #38a16915);
       border: 2px solid var(--primary-light);
       border-radius: 12px;
       display: none;
@@ -290,8 +290,7 @@
       padding: 30px 20px;
       text-align: center;
       color: white;
-      background: rgba(0, 0, 0, 0.1);
-      backdrop-filter: blur(10px);
+      background: var(--dark);
       position: relative;
       z-index: 10;
     }
@@ -551,7 +550,7 @@
       const copyBtn = document.getElementById('copyBtn');
       const originalText = copyBtn.innerHTML;
       copyBtn.innerHTML = '✓ Copied!';
-      copyBtn.style.background = '#48bb78';
+      copyBtn.style.background = '#2f855a';
       
       setTimeout(() => {
         copyBtn.innerHTML = originalText;
