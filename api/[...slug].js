@@ -146,16 +146,24 @@ export default async function handler(req, res) {
         
         // Replace proxy domain URLs with Apps Script base
         const proxyPattern = new RegExp(
-          `https?://${proxyHost.replace(/\./g, '\\.')}/${slug}(/[^"'\\s>]*)`,
+          `https?://${proxyHost.replace(/\./g, '\\.')}/${slug}(/[^"'\\s?]*)?(\\?[^"'\\s]*)?`,
           'g'
         );
         
-        body = body.replace(proxyPattern, (match, path) => {
-          // Keep main page on proxy, redirect static/API to script.google.com
-          if (!path || path === '/' || path.startsWith('/?')) {
-            return match;
+        body = body.replace(proxyPattern, (match, path, query) => {
+          path = path || '';
+          query = query || '';
+
+          // If path exists and is not just '/', it's a resource link (e.g., /static/style.css)
+          // These should be rewritten to point to the script base URL.
+          if (path && path !== '/') {
+            return scriptBase + path + query;
           }
-          return scriptBase + path;
+
+          // Otherwise, it's a root link (path is '', '/', or there's only a query).
+          // These should be rewritten to point to the main /exec URL to ensure
+          // navigation with query parameters works correctly.
+          return APPS_SCRIPT_URL + query;
         });
         
         // Fix relative URLs
