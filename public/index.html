@@ -75,62 +75,6 @@
       }
     }
 
-    /* Header */
-    header {
-      background: rgba(255, 255, 255, 0.1);
-      backdrop-filter: blur(10px);
-      padding: 20px 0;
-      position: relative;
-      z-index: 10;
-    }
-
-    .header-content {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 0 20px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .logo {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      color: white;
-      text-decoration: none;
-      font-size: 1.5rem;
-      font-weight: 700;
-    }
-
-    .logo-icon {
-      width: 40px;
-      height: 40px;
-      background: white;
-      border-radius: 10px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.5rem;
-    }
-
-    .nav-links {
-      display: flex;
-      gap: 30px;
-      list-style: none;
-    }
-
-    .nav-links a {
-      color: white;
-      text-decoration: none;
-      font-weight: 500;
-      transition: opacity 0.3s;
-    }
-
-    .nav-links a:hover {
-      opacity: 0.8;
-    }
-
     /* Main Container */
     .main-container {
       flex: 1;
@@ -509,10 +453,6 @@
       .stats {
         grid-template-columns: 1fr;
       }
-
-      .nav-links {
-        display: none;
-      }
     }
 
     /* Loading Spinner */
@@ -586,23 +526,6 @@
 <body>
   <!-- Animated Background Particles -->
   <div class="particles" id="particles"></div>
-
-  <!-- Header -->
-  <header>
-    <div class="header-content">
-      <a href="/" class="logo">
-        <div class="logo-icon">🚀</div>
-        <span>Vibecode Proxy</span>
-      </a>
-      <nav>
-        <ul class="nav-links">
-          <li><a href="#features">Features</a></li>
-          <li><a href="#how">How it Works</a></li>
-          <li><a href="https://github.com" target="_blank">GitHub</a></li>
-        </ul>
-      </nav>
-    </div>
-  </header>
 
   <!-- Main Content -->
   <div class="main-container">
