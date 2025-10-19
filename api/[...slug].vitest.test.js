@@ -6,7 +6,7 @@ import handler from './[...slug].js';
 vi.mock('@vercel/kv', () => ({
   kv: {
     get: vi.fn(),
-    hincrby: vi.fn(),
+    incr: vi.fn(),
   },
 }));
 
@@ -48,8 +48,8 @@ const mockMapping = {
 describe('API Handler: /[...slug].js', () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    // Pastikan hincrby selalu di-mock untuk menghindari error '.catch' pada undefined
-    kv.hincrby.mockResolvedValue(1);
+    // Pastikan incr selalu di-mock untuk menghindari error '.catch' pada undefined
+    kv.incr.mockResolvedValue(1);
   });
 
   afterEach(() => {
@@ -70,6 +70,20 @@ describe('API Handler: /[...slug].js', () => {
     expect(sentHtml).toContain('<p>Slug <strong>"slug-tidak-ada"</strong> tidak ditemukan.</p>');
   });
 
+  it('harus meng-escape slug saat menampilkan halaman 404', async () => {
+    kv.get.mockResolvedValue(null);
+    const maliciousSlug = `bad"><script>alert("xss")</script>`;
+    const req = mockRequest('GET', maliciousSlug);
+    const res = mockResponse();
+
+    await handler(req, res);
+
+    const sentHtml = res.send.mock.calls[0][0];
+    expect(sentHtml).not.toContain('<script>alert("xss")</script>');
+    expect(sentHtml).toContain('&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;');
+    expect(sentHtml).toContain('Slug <strong>"');
+  });
+
   it('harus melakukan proxy ke URL Apps Script utama untuk slug root', async () => {
     kv.get.mockResolvedValue(mockMapping);
     mockFetch.mockResolvedValue({
@@ -84,7 +98,7 @@ describe('API Handler: /[...slug].js', () => {
     await handler(req, res);
 
     expect(kv.get).toHaveBeenCalledWith('slug:my-app');
-    expect(kv.hincrby).toHaveBeenCalledWith('slug:my-app', 'accessCount', 1);
+    expect(kv.incr).toHaveBeenCalledWith('slug:my-app:count');
     expect(mockFetch).toHaveBeenCalledWith(
       'https://script.google.com/macros/s/123/exec',
       expect.any(Object)

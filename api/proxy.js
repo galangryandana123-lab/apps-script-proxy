@@ -1,4 +1,5 @@
 import { kv } from '@vercel/kv';
+import { escapeHtml } from './_utils.js';
 
 /**
  * Dynamic Slug Reverse Proxy for Google Apps Script
@@ -19,6 +20,15 @@ export const config = {
   }
 };
 
+const isVerboseLoggingEnabled =
+  process.env.DEBUG_PROXY === '1' || process.env.NODE_ENV !== 'production';
+
+const verboseLog = (...args) => {
+  if (isVerboseLoggingEnabled) {
+    console.log(...args);
+  }
+};
+
 export default async function handler(req, res) {
   // Extract slug from query parameter (from rewrite: ?slug=supplier-gathering/wardeninit)
   const slugParam = req.query.slug || '';
@@ -26,12 +36,13 @@ export default async function handler(req, res) {
   const slug = parts[0]; // First segment is the actual slug
   const subPath = parts.length > 1 ? '/' + parts.slice(1).join('/') : '';
   let targetUrl = ''; // Declare here for error logging
+  const safeSlug = escapeHtml(slug);
   
   try {
 
     // Log request
-    console.log(`[Proxy] ${req.method} /${slugParam}`);
-    console.log(`[Proxy] Parsed - slug: "${slug}", subPath: "${subPath}"`);
+    verboseLog(`[Proxy] ${req.method} /${slugParam}`);
+    verboseLog(`[Proxy] Parsed - slug: "${slug}", subPath: "${subPath}"`);
 
     // Lookup slug in database
     const mapping = await kv.get(`slug:${slug}`);
@@ -78,7 +89,7 @@ export default async function handler(req, res) {
         <body>
           <div class="container">
             <h1>404</h1>
-            <p>Slug <strong>"${slug}"</strong> tidak ditemukan.</p>
+            <p>Slug <strong>"${safeSlug}"</strong> tidak ditemukan.</p>
             <p>Pastikan URL yang Anda masukkan sudah benar.</p>
             <a href="/">← Kembali ke Beranda</a>
           </div>
@@ -114,20 +125,20 @@ export default async function handler(req, res) {
     if (!subPath || subPath === '/' || subPath === '') {
       // Main page: /{slug}
       targetUrl = APPS_SCRIPT_URL + queryString;
-      console.log(`[Proxy] Main page request, target: ${targetUrl}`);
+      verboseLog(`[Proxy] Main page request, target: ${targetUrl}`);
     } else if (subPath === '/wardeninit') {
       // Special handling for wardeninit - it's under /exec/wardeninit
       targetUrl = APPS_SCRIPT_URL + '/wardeninit' + queryString;
-      console.log(`[Proxy] Wardeninit request, target: ${targetUrl}`);
+      verboseLog(`[Proxy] Wardeninit request, target: ${targetUrl}`);
     } else if (subPath.startsWith('/static/') || subPath.startsWith('/macros/')) {
       // Static resources - directly under script base
       const scriptBase = APPS_SCRIPT_URL.replace('/exec', '');
       targetUrl = scriptBase + subPath + queryString;
-      console.log(`[Proxy] Static resource request, scriptBase: ${scriptBase}, subPath: ${subPath}, target: ${targetUrl}`);
+      verboseLog(`[Proxy] Static resource request, scriptBase: ${scriptBase}, subPath: ${subPath}, target: ${targetUrl}`);
     } else {
       // Other paths - assume under /exec
       targetUrl = APPS_SCRIPT_URL + subPath + queryString;
-      console.log(`[Proxy] Sub-path request under /exec, target: ${targetUrl}`);
+      verboseLog(`[Proxy] Sub-path request under /exec, target: ${targetUrl}`);
     }
     
     // Prepare fetch options - forward ALL client headers except problematic ones
@@ -173,7 +184,7 @@ export default async function handler(req, res) {
       fetchOptions.headers['x-same-domain'] = req.headers['x-same-domain'];
     }
     
-    console.log(`[Proxy] Forwarding ${Object.keys(fetchOptions.headers).length} headers (cleaned)`);
+    verboseLog(`[Proxy] Forwarding ${Object.keys(fetchOptions.headers).length} headers (cleaned)`);
     
     // Forward POST/PUT/PATCH body if present
     if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
@@ -205,23 +216,27 @@ export default async function handler(req, res) {
       
       if (bodyContent) {
         fetchOptions.body = bodyContent;
-        console.log(`[Proxy] Body preview: ${bodyContent.substring(0, 200)}`);
+        verboseLog(`[Proxy] Body preview: ${bodyContent.substring(0, 200)}`);
       }
     }
     
     // Fetch from Apps Script
-    console.log(`[Proxy] Fetching: ${targetUrl}`);
-    console.log(`[Proxy] Method: ${req.method}`);
-    console.log(`[Proxy] Headers:`, JSON.stringify(fetchOptions.headers, null, 2));
-    console.log(`[Proxy] Body type: ${typeof fetchOptions.body}, length: ${fetchOptions.body ? fetchOptions.body.length : 0}`);
+    verboseLog(`[Proxy] Fetching: ${targetUrl}`);
+    verboseLog(`[Proxy] Method: ${req.method}`);
+    if (isVerboseLoggingEnabled) {
+      verboseLog(`[Proxy] Headers:`, JSON.stringify(fetchOptions.headers, null, 2));
+      verboseLog(
+        `[Proxy] Body type: ${typeof fetchOptions.body}, length: ${fetchOptions.body ? fetchOptions.body.length : 0}`
+      );
+    }
     if (fetchOptions.body) {
-      console.log(`[Proxy] Body preview: ${fetchOptions.body.substring(0, 500)}`);
+      verboseLog(`[Proxy] Body preview: ${fetchOptions.body.substring(0, 500)}`);
     }
     
     let response;
     try {
       response = await fetch(targetUrl, fetchOptions);
-      console.log(`[Proxy] Response status: ${response.status}`);
+      verboseLog(`[Proxy] Response status: ${response.status}`);
     } catch (fetchError) {
       console.error(`[Proxy] Fetch failed:`, fetchError);
       throw fetchError;
@@ -229,26 +244,26 @@ export default async function handler(req, res) {
     
     // Get response body
     const contentType = response.headers.get('content-type') || '';
-    console.log(`[Proxy] Response content-type: ${contentType}`);
+    verboseLog(`[Proxy] Response content-type: ${contentType}`);
     let body;
     
     try {
       if (contentType.includes('application/json')) {
         // Get raw text first to handle XSSI protection prefix
         let rawText = await response.text();
-        console.log(`[Proxy] Raw JSON response preview: ${rawText.substring(0, 100)}`);
+        verboseLog(`[Proxy] Raw JSON response preview: ${rawText.substring(0, 100)}`);
         
         // Strip Google Apps Script XSSI protection prefix: )]}'
         if (rawText.startsWith(")]}'\n")) {
           rawText = rawText.substring(5);
-          console.log(`[Proxy] Stripped XSSI prefix )]}'`);
+          verboseLog(`[Proxy] Stripped XSSI prefix )]}'`);
         }
         
         body = JSON.parse(rawText);
-        console.log(`[Proxy] JSON response length: ${JSON.stringify(body).length}`);
+        verboseLog(`[Proxy] JSON response length: ${JSON.stringify(body).length}`);
       } else if (contentType.includes('text/')) {
         body = await response.text();
-        console.log(`[Proxy] Text response length: ${body.length}`);
+        verboseLog(`[Proxy] Text response length: ${body.length}`);
       
       // Rewrite HTML to fix resource URLs
       if (contentType.includes('text/html') && typeof body === 'string') {
@@ -409,11 +424,11 @@ export default async function handler(req, res) {
           }
         );
         
-        console.log('[Proxy] Rewrote all relative URLs to absolute Apps Script URLs');
+        verboseLog('[Proxy] Rewrote all relative URLs to absolute Apps Script URLs');
       }
     } else {
       body = await response.arrayBuffer();
-      console.log(`[Proxy] Binary response length: ${body.byteLength}`);
+      verboseLog(`[Proxy] Binary response length: ${body.byteLength}`);
     }
     } catch (bodyError) {
       console.error(`[Proxy] Error parsing response body:`, bodyError);
@@ -428,7 +443,7 @@ export default async function handler(req, res) {
         // Remove CSP for HTML responses to allow our injected shim script
         if (lowerKey === 'content-security-policy' && contentType.includes('text/html')) {
           // Skip CSP header - our shim needs to run without CSP restrictions
-          console.log('[Proxy] Removed CSP header to allow shim injection');
+          verboseLog('[Proxy] Removed CSP header to allow shim injection');
           return; // Don't add this header
         }
         forwardHeaders[key] = value;
@@ -463,7 +478,7 @@ export default async function handler(req, res) {
       res.json(body);
     }
     
-    console.log(`[Proxy] Success: ${response.status} for slug: ${slug}`);
+    verboseLog(`[Proxy] Success: ${response.status} for slug: ${slug}`);
     
   } catch (error) {
     console.error('[Proxy] Error:', error);

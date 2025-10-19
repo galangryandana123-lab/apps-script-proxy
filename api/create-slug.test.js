@@ -28,6 +28,7 @@ describe('API Handler: /api/create-slug', () => {
   beforeEach(() => {
     // Reset semua mock sebelum setiap tes
     vi.resetAllMocks();
+    delete process.env.APP_BASE_URL;
   });
 
   it('harus mengembalikan 405 jika metode bukan POST', async () => {
@@ -131,7 +132,61 @@ describe('API Handler: /api/create-slug', () => {
       success: true,
       slug: 'slug-baru',
       message: `Custom URL berhasil dibuat: /slug-baru`,
-      url: `contoh.com/slug-baru`,
+      url: `https://contoh.com/slug-baru`,
+    });
+  });
+
+  it('harus menggunakan APP_BASE_URL jika tersedia', async () => {
+    process.env.APP_BASE_URL = 'https://app.example.com';
+
+    const req = mockRequest(
+      'POST',
+      {
+        slug: 'slug-base',
+        appsScriptUrl: 'https://script.google.com/macros/s/abc/exec',
+        appName: 'Base URL',
+      },
+      { host: 'malicious.com' }
+    );
+    const res = mockResponse();
+
+    kv.get.mockResolvedValue(null);
+    kv.set.mockResolvedValue('OK');
+
+    await handler(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(201);
+    expect(res.json).toHaveBeenCalledWith({
+      success: true,
+      slug: 'slug-base',
+      message: `Custom URL berhasil dibuat: /slug-base`,
+      url: `https://app.example.com/slug-base`,
+    });
+  });
+
+  it('harus mengembalikan URL relatif ketika host tidak valid', async () => {
+    const req = mockRequest(
+      'POST',
+      {
+        slug: 'slug-relatif',
+        appsScriptUrl: 'https://script.google.com/macros/s/xyz/exec',
+        appName: 'Relatif',
+      },
+      { host: 'bad.com\nmalicious.com' }
+    );
+    const res = mockResponse();
+
+    kv.get.mockResolvedValue(null);
+    kv.set.mockResolvedValue('OK');
+
+    await handler(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(201);
+    expect(res.json).toHaveBeenCalledWith({
+      success: true,
+      slug: 'slug-relatif',
+      message: `Custom URL berhasil dibuat: /slug-relatif`,
+      url: `/slug-relatif`,
     });
   });
 

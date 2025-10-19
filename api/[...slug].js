@@ -1,4 +1,5 @@
 import { kv } from '@vercel/kv';
+import { escapeHtml } from './_utils.js';
 
 /**
  * Dynamic Slug Reverse Proxy for Google Apps Script
@@ -18,6 +19,7 @@ export default async function handler(req, res) {
     const slugArray = Array.isArray(req.query.slug) ? req.query.slug : [req.query.slug];
     const slug = slugArray[0]; // First segment is the actual slug
     const subPath = slugArray.length > 1 ? '/' + slugArray.slice(1).join('/') : '';
+    const safeSlug = escapeHtml(slug);
 
     // Log request
     console.log(`[Proxy] ${req.method} /${slugArray.join('/')}${req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : ''}`);
@@ -67,7 +69,7 @@ export default async function handler(req, res) {
         <body>
           <div class="container">
             <h1>404</h1>
-            <p>Slug <strong>"${slug}"</strong> tidak ditemukan.</p>
+            <p>Slug <strong>"${safeSlug}"</strong> tidak ditemukan.</p>
             <p>Pastikan URL yang Anda masukkan sudah benar.</p>
             <a href="/">← Kembali ke Beranda</a>
           </div>
@@ -79,7 +81,7 @@ export default async function handler(req, res) {
     const APPS_SCRIPT_URL = mapping.appsScriptUrl;
 
     // Increment access count (fire and forget)
-    kv.hincrby(`slug:${slug}`, 'accessCount', 1).catch(err => {
+    kv.incr(`slug:${slug}:count`).catch(err => {
       console.error('[Proxy] Failed to increment access count:', err);
     });
 

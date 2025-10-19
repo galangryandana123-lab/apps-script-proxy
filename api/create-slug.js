@@ -1,4 +1,5 @@
 import { kv } from '@vercel/kv';
+import { resolveOrigin } from './_utils.js';
 
 /**
  * API endpoint to create new slug mappings
@@ -56,12 +57,16 @@ export default async function handler(req, res) {
     // Log creation
     console.log(`[Create Slug] Created: ${slug} -> ${appsScriptUrl}`);
 
+    const origin = resolveOrigin(req);
+    const normalizedOrigin = origin ? origin.replace(/\/+$/, '') : undefined;
+    const publicUrl = normalizedOrigin ? `${normalizedOrigin}/${slug}` : `/${slug}`;
+
     // Return success response
     return res.status(201).json({
       success: true,
       slug,
       message: `Custom URL berhasil dibuat: /${slug}`,
-      url: `${req.headers.host}/${slug}`
+      url: publicUrl
     });
 
   } catch (error) {

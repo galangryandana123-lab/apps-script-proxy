@@ -1,4 +1,5 @@
 import { kv } from '@vercel/kv';
+import { escapeHtml } from './_utils.js';
 
 /**
  * Iframe-based Proxy for Google Apps Script
@@ -16,6 +17,7 @@ export default async function handler(req, res) {
   const slugParam = req.query.slug || '';
   const parts = slugParam.split('/').filter(Boolean);
   const slug = parts[0];
+  const safeSlug = escapeHtml(slug);
   
   try {
     console.log(`[IFrame Proxy] Slug: ${slug}`);
@@ -63,7 +65,7 @@ export default async function handler(req, res) {
         <body>
           <div class="error-container">
             <h1>404</h1>
-            <p>Aplikasi dengan kode <strong>"${slug}"</strong> tidak ditemukan.</p>
+            <p>Aplikasi dengan kode <strong>"${safeSlug}"</strong> tidak ditemukan.</p>
             <a href="/">Kembali</a>
           </div>
         </body>
@@ -72,6 +74,10 @@ export default async function handler(req, res) {
     }
     
     const APPS_SCRIPT_URL = mapping.appsScriptUrl;
+    const appNameDisplay = mapping.appName || 'Apps Script App';
+    const appNameLoading = mapping.appName || 'Application';
+    const safeAppNameTitle = escapeHtml(appNameDisplay);
+    const safeLoadingAppName = escapeHtml(appNameLoading);
     
     // Increment access count
     kv.incr(`slug:${slug}:count`).catch(err => {
@@ -83,7 +89,7 @@ export default async function handler(req, res) {
 <!DOCTYPE html>
 <html>
 <head>
-  <title>${mapping.appName || 'Apps Script App'}</title>
+  <title>${safeAppNameTitle}</title>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
@@ -265,7 +271,7 @@ export default async function handler(req, res) {
   <div class="loading-overlay" id="loadingOverlay">
     <div class="loader">
       <div class="spinner"></div>
-      <div class="loading-text">Loading ${mapping.appName || 'Application'}...</div>
+      <div class="loading-text">Loading ${safeLoadingAppName}...</div>
       <div class="loading-subtext">Please wait a moment</div>
     </div>
   </div>

@@ -120,7 +120,7 @@ Opsi 2 – GitHub integration:
     "accessCount": 0
   }
   ```
-- Hit counter tambahan: `kv.hincrby('slug:{slug}', 'accessCount', 1)` di reverse proxy.
+- Hit counter tambahan: `kv.incr('slug:{slug}:count')` di reverse proxy (nilai ini disimpan di key terpisah dari objek utama).
 
 ## 🎨 Kustomisasi
 - Ubah copywriting/branding: edit `public/index.html`.
