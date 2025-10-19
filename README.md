@@ -1,206 +1,157 @@
-# 🚀 Akses Shortener
+# 🚀 Apps Script Proxy
 
-Multi-tenant URL shortener untuk Google Apps Script - Menghilangkan warning banner dan menyediakan custom slug URLs yang professional.
+Serverless reverse proxy yang membuat Google Apps Script tampil profesional di domain Anda sendiri. Proyek ini menyediakan antarmuka landing page untuk membuat slug kustom, menyimpan mapping ke Vercel KV, lalu me-render aplikasi Google Apps Script tanpa menampilkan warning banner bawaan Google.
 
-## 🎯 Fitur
+## ✨ Highlights
+- Multi-tenant: satu deployment melayani banyak aplikasi dengan slug berbeda.
+- HTML rewriting: request ke Apps Script diproksikan sambil membersihkan URL dan resource path.
+- Storage terpusat: mapping slug ↔ Apps Script URL disimpan di Vercel KV.
+- Landing page statis siap pakai untuk membuat slug baru.
+- Vitest coverage untuk endpoint utama (`create-slug` dan proxy slug).
 
-- ✅ **Multi-tenant**: Banyak aplikasi dalam satu platform
-- ✅ **Custom Slug**: URL yang mudah diingat (e.g., `domain.com/supplier-pln`)
-- ✅ **No Warning Banner**: Menghilangkan warning Google Apps Script
-- ✅ **Auto Slug Generator**: Generate slug otomatis dari nama aplikasi
-- ✅ **Database Driven**: Vercel KV (Redis) untuk penyimpanan mapping
-- ✅ **Professional Appearance**: Custom branding untuk setiap aplikasi
-- ✅ **Edge Caching**: Performance optimal dengan CDN
-- ✅ **Camera/Scanner Support**: Permissions untuk barcode/QR scanner
-
-## 📋 Prerequisites
-
-1. Akun Vercel (gratis di https://vercel.com)
-2. GitHub Account (untuk auto-deployment)
-3. Domain custom (optional, bisa pakai `*.vercel.app`)
-
-## 🚀 Quick Start Deployment
-
-### **Step 1: Fork & Clone Repository**
-```bash
-git clone https://github.com/yourusername/akses-shortener
-cd akses-shortener
+## 🔍 Arsitektur Singkat
+```
+/{slug}              → vercel.json rewrite → api/iframe-proxy.js → Google Apps Script (iframe mode)
+/api/{slug...}       → api/[...slug].js    → Google Apps Script (reverse proxy + HTML rewrite)
+/api/create-slug     → api/create-slug.js  → Vercel KV (store slug mapping)
+/api/stats           → api/stats.js        → KV / mock data (opsional)
+Landing page (public/index.html) memanggil /api/create-slug untuk membuat slug baru.
 ```
 
-### **Step 2: Push ke GitHub**
-```bash
-git remote set-url origin https://github.com/yourusername/akses-shortener.git
-git push -u origin main
-```
+## 📁 Struktur Repository
+- `api/[...slug].js` – reverse proxy utama dengan rewriting HTML resource.
+- `api/create-slug.js` – endpoint pembuatan slug baru.
+- `api/iframe-proxy.js` – fallback iframe loader yang digunakan oleh rewrite default.
+- `api/stats.js` – endpoint statistik (saat ini mock data).
+- `public/index.html` – landing page + form generator slug.
+- `vercel.json` – konfigurasi rewrites, headers, dan limits fungsi.
+- `vitest.config.js` & `api/*.test.js` – konfigurasi dan test suite.
 
-### **Step 3: Deploy ke Vercel via Web Dashboard**
+## ✅ Prasyarat
+1. Node.js 18+ (match runtime Vercel).
+2. Akun Vercel dengan akses KV.
+3. Vercel CLI (`npm i -g vercel`) untuk local dev & deploy.
+4. Opsional: domain kustom.
 
-1. Buka https://vercel.com/new
-2. **Import Git Repository** → Pilih repo Anda
-3. **Configure Project:**
-   - Project Name: `akses-shortener`
-   - Framework Preset: Other
-   - Root Directory: `./`
-4. Klik **"Deploy"**
-
-### **Step 4: Setup Vercel KV Database** (PENTING!)
-
-Setelah deployment pertama:
-
-1. Di Vercel Dashboard, buka project Anda
-2. Klik **"Storage"** tab
-3. Klik **"Create Database"**
-4. Pilih **"KV"** (Key-Value Storage)
-5. Database Name: `akses-kv`
-6. Klik **"Create"**
-7. **Auto-link** ke project Anda
-8. **Redeploy** project (Settings → Deployments → Redeploy)
-
-### **Step 5: Custom Domain (Optional)**
-
-1. Di project dashboard, klik **"Settings" → "Domains"**
-2. Add domain: `yourdomain.com`
-3. Update DNS records sesuai instruksi Vercel
-
-## 🎨 Cara Menggunakan
-
-### **Untuk User: Generate Slug**
-
-1. Buka `https://yourdomain.com/`
-2. Isi form:
-   - **Nama Aplikasi**: "Supplier Gathering PLN"
-   - **URL Apps Script**: `https://script.google.com/macros/s/.../exec`
-3. Klik **"Generate Slug"**
-4. Copy custom URL: `https://yourdomain.com/supplier-gathering-pln`
-5. Share URL tersebut ke users!
-
-### **Untuk End Users: Akses App**
-
-1. Buka `https://yourdomain.com/supplier-gathering-pln`
-2. Aplikasi akan load **TANPA warning banner** ✅
-3. URL tetap di custom domain (tidak redirect ke script.google.com)
-
-## 🏗️ Architecture
-
-```
-User Request
-    ↓
-https://yourdomain.com/{slug}
-    ↓
-Vercel Serverless Function
-    ↓
-Lookup slug in KV Database
-    ↓
-Fetch from Apps Script URL
-    ↓
-Rewrite HTML (remove warning)
-    ↓
-Return to User (URL stays on custom domain)
-```
-
-## 📊 Monitoring & Analytics
-
-**View Logs:**
-- Vercel Dashboard → Project → Functions → Logs
-- Real-time function execution logs
-- Error tracking
-
-**Database Analytics:**
-- Each slug tracks `accessCount`
-- View in Vercel KV Dashboard
+## ⚡ Quickstart
+1. **Clone repositori**
+   ```bash
+   git clone https://github.com/galangryandana123-lab/apps-script-proxy.git
+   cd apps-script-proxy
+   npm install
+   ```
+2. **Login & link proyek ke Vercel**
+   ```bash
+   vercel login
+   vercel link  # pilih scope & project name
+   ```
+3. **Buat dan tautkan Vercel KV**
+   - Vercel Dashboard → Storage → Create Database → pilih **KV**.
+   - Link database ke project ini.
+   - Klik Redeploy agar environment variables (`KV_REST_API_URL`, `KV_REST_API_TOKEN`, `KV_REST_API_READ_ONLY_TOKEN`, `KV_REST_API_READ_WRITE_TOKEN`) tersedia.
+4. **Sinkronkan environment ke lokal**
+   ```bash
+   vercel env pull .env.local
+   ```
+5. **Jalankan secara lokal**
+   ```bash
+   npm run dev       # alias dari `vercel dev`
+   # Akses http://localhost:3000
+   ```
 
 ## 🧪 Testing
+- Unit test & coverage:
+  ```bash
+  npm test          # menjalankan Vitest dengan laporan cakupan
+  ```
+- Endpoint manual:
+  ```bash
+  curl -X POST http://localhost:3000/api/create-slug \
+    -H 'Content-Type: application/json' \
+    -d '{"slug":"demo","appsScriptUrl":"https://script.google.com/macros/s/XXX/exec","appName":"Demo"}'
 
-### Local Development
+  curl http://localhost:3000/api/demo
+  ```
+
+## 🚀 Deploy ke Vercel
+Opsi 1 – CLI:
 ```bash
-npm install
-vercel dev
-# Visit: http://localhost:3000
+vercel                 # preview deployment
+vercel --prod          # atau npm run deploy
 ```
 
-### Production Testing
-```bash
-# Test landing page
-curl https://yourdomain.com/
+Opsi 2 – GitHub integration:
+1. Push perubahan ke branch default.
+2. Vercel otomatis build & deploy.
 
-# Test slug
-curl https://yourdomain.com/your-slug
-```
+## 🌐 Konfigurasi Domain
+1. Vercel Dashboard → Project → Settings → Domains.
+2. Tambahkan domain kustom dan ikuti instruksi DNS.
+3. Semua permintaan `https://yourdomain.com/{slug}` otomatis dialihkan ke proxy.
 
-## ⚡ Performance
+## 🔌 API Reference
+- **POST `/api/create-slug`** – body JSON:
+  ```json
+  {
+    "slug": "nama-aplikasi",
+    "appsScriptUrl": "https://script.google.com/macros/s/.../exec",
+    "appName": "Nama Tampilan"
+  }
+  ```
+  Validasi: slug hanya huruf kecil/angka/hyphen, URL harus `.../exec`.
 
-- Edge caching: 50-200ms response time
-- Global CDN: 275+ locations
-- Automatic HTTPS
-- HTTP/2 & HTTP/3 support
+- **GET `/api/{slug}`** – reverse proxy dengan rewriting penuh (gunakan jika ingin melewati iframe).
 
-## 🔒 Security
+- **GET `/api/{slug}/{path}`** – meneruskan sub-path (misal `/static/style.css`).
 
-- Automatic HTTPS/SSL
-- DDoS protection
-- Rate limiting (Vercel)
-- Security headers enabled
+- **GET `/api/stats`** – saat ini mock data; modifikasi sesuai kebutuhan.
 
-## 💰 Cost Estimation
+- **GET `/api/iframe-proxy?slug={slug/...}`** – mode iframe (digunakan oleh rewrite default).
 
-**Vercel Free Tier (Hobby):**
-- ✅ 100GB bandwidth/month
-- ✅ Unlimited serverless function invocations
-- ✅ 256KB KV storage (plenty for thousands of slugs)
-- ✅ Automatic SSL
-- ✅ Global CDN
+## 🗃️ Bentuk Data KV
+- Key: `slug:{slug}`
+- Value:
+  ```json
+  {
+    "slug": "demo",
+    "appsScriptUrl": "https://script.google.com/macros/s/.../exec",
+    "appName": "Demo App",
+    "createdAt": "2024-01-01T00:00:00.000Z",
+    "accessCount": 0
+  }
+  ```
+- Hit counter tambahan: `kv.hincrby('slug:{slug}', 'accessCount', 1)` di reverse proxy.
 
-**Example Usage:**
-- 10 apps × 1,000 pageviews/month = 10,000 requests
-- Avg 100KB per request = 1GB bandwidth
-- **Cost: $0 (Free tier)** ✅
+## 🎨 Kustomisasi
+- Ubah copywriting/branding: edit `public/index.html`.
+- Ganti strategi proxy:
+  - Untuk selalu memakai reverse proxy HTML, update `vercel.json` rewrite agar mengarah ke `/api/[...slug]`.
+  - Sesuaikan header keamanan / izin kamera di file yang sama.
+- Tambah endpoint baru: buat file baru di `api/` (Next.js / Vercel style).
 
-**Scale:**
-- Free tier dapat handle **ratusan apps** dan **puluhan ribu users/month**
+## 🧰 Monitoring
+- **Logs**: Vercel Dashboard → Project → Functions → Logs.
+- **KV**: Dashboard → Storage → KV → Explore untuk cek slug & akses.
 
 ## 🛠️ Troubleshooting
+- `KV_REST_API_URL is not defined`
+  - Pastikan KV sudah di-link dan environment ditarik ulang (`vercel env pull`).
+- `Slug not found`
+  - Cek data di KV, slug dibuat lewat landing page, atau gunakan endpoint POST manual.
+- Warning banner masih muncul
+  - Gunakan endpoint `/api/{slug}` (reverse proxy) atau pastikan Apps Script URL valid.
+- Response lambat
+  - Optimalkan Apps Script, manfaatkan cache control, atau gunakan Edge Functions jika perlu.
 
-### ❌ "KV_REST_API_URL is not defined"
-**Solusi:**
-1. Buka Vercel Dashboard → Project → Storage
-2. Create KV Database
-3. Link database ke project
-4. Redeploy project
+## 🤝 Kontribusi
+1. Fork repo.
+2. Buat branch fitur.
+3. Tambahkan test bila memungkinkan.
+4. Kirim pull request.
 
-### ❌ "Slug not found" (404)
-**Cek:**
-- Slug sudah dibuat via landing page?
-- Cek di Vercel KV Dashboard apakah data tersimpan
-- Test dengan slug lain
-
-### ❌ Warning banner masih muncul
-**Penyebab:**
-- HTML rewriting gagal
-- Apps Script URL tidak valid
-- Cek Vercel function logs untuk error
-
-### ❌ Slug sudah ada (409)
-**Solusi:**
-- Gunakan nama aplikasi yang berbeda
-- Atau hapus slug lama dari KV Database
-
-### 🐌 Response lambat
-- Cache: Check Cache-Control headers
-- Apps Script: Optimize script performance
-- Vercel Region: Consider using Edge Functions
-
-## 🤝 Contributing
-
-Contributions welcome! Please:
-1. Fork repository
-2. Create feature branch
-3. Make changes
-4. Submit pull request
-
-## 📄 License
-
-MIT License - Free to use and modify
+## 📄 Lisensi
+MIT License.
 
 ---
 
-Made with ❤️ by [Galang Ryandana](https://github.com/galangryandana123-lab)
+Dibuat dengan ❤️ oleh [Galang Ryandana](https://github.com/galangryandana123-lab)
