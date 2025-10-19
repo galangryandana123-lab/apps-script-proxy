@@ -1,12 +1,36 @@
 import { kv } from '@vercel/kv';
-import { resolveOrigin } from './_utils.js';
+import { resolveOrigin, rateLimit, sanitizeForLog } from './_utils.js';
 
 /**
  * API endpoint to create new slug mappings
  * POST /api/create-slug
  */
 export default async function handler(req, res) {
-  // Only accept POST requests
+  // 1. Rate Limiting
+  const { isLimited, remaining, reset } = await rateLimit(req, {
+    limit: 10, // 10 requests
+    window: 60, // per 60 seconds
+    prefix: 'create-slug',
+    kv: kv
+  });
+
+  res.setHeader('X-RateLimit-Limit', 10);
+  res.setHeader('X-RateLimit-Remaining', remaining);
+  res.setHeader('X-RateLimit-Reset', reset);
+
+  if (isLimited) {
+    return res.status(429).json({ error: 'Too many requests. Please try again later.' });
+  }
+
+  // 2. Authentication
+  const { authorization } = req.headers;
+  const token = authorization?.split(' ')[1];
+
+  if (!token || token !== process.env.AUTHORIZATION_TOKEN) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  // 3. Only accept POST requests
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -55,7 +79,7 @@ export default async function handler(req, res) {
     await kv.set(`slug:${slug}`, mapping);
 
     // Log creation
-    console.log(`[Create Slug] Created: ${slug} -> ${appsScriptUrl}`);
+    console.log(`[Create Slug] Created: ${sanitizeForLog(slug)} -> ${sanitizeForLog(appsScriptUrl)}`);
 
     const origin = resolveOrigin(req);
     const normalizedOrigin = origin ? origin.replace(/\/+$/, '') : undefined;
