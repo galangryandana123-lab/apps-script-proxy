@@ -8,12 +8,6 @@ vi.mock('@vercel/kv', () => ({
   kv: {
     get: vi.fn(),
     set: vi.fn(),
-    pipeline: vi.fn().mockReturnThis(),
-    zadd: vi.fn(),
-    zremrangebyscore: vi.fn(),
-    zcard: vi.fn(),
-    expire: vi.fn(),
-    exec: vi.fn(),
   },
 }));
 
@@ -35,42 +29,22 @@ const mockResponse = () => {
   return res;
 };
 
-const AUTHORIZATION_TOKEN = 'test-secret-token';
-
 describe('API Handler: /api/create-slug', () => {
   beforeEach(() => {
     // Reset semua mock sebelum setiap tes
     vi.resetAllMocks();
     delete process.env.APP_BASE_URL;
-    process.env.AUTHORIZATION_TOKEN = AUTHORIZATION_TOKEN;
-
     // Default mock untuk rate limit (tidak terbatas)
     rateLimitMock.mockResolvedValue({ isLimited: false, remaining: 10, reset: 60 });
   });
 
   // --- Test Keamanan ---
 
-  it('harus mengembalikan 401 jika token otentikasi tidak ada', async () => {
-    const req = mockRequest('POST', {}, {}); // Tidak ada header Authorization
-    const res = mockResponse();
-    await handler(req, res);
-    expect(res.status).toHaveBeenCalledWith(401);
-    expect(res.json).toHaveBeenCalledWith({ error: 'Unauthorized' });
-  });
-
-  it('harus mengembalikan 401 jika token otentikasi tidak valid', async () => {
-    const req = mockRequest('POST', {}, { authorization: 'Bearer invalid-token' });
-    const res = mockResponse();
-    await handler(req, res);
-    expect(res.status).toHaveBeenCalledWith(401);
-    expect(res.json).toHaveBeenCalledWith({ error: 'Unauthorized' });
-  });
-
   it('harus mengembalikan 429 jika rate limit terlampaui', async () => {
     // Mock rateLimit untuk mengembalikan 'terbatas'
     rateLimitMock.mockResolvedValue({ isLimited: true, remaining: 0, reset: 30 });
 
-    const req = mockRequest('POST', {}, { authorization: `Bearer ${AUTHORIZATION_TOKEN}` });
+    const req = mockRequest('POST', {});
     const res = mockResponse();
 
     await handler(req, res);
@@ -82,7 +56,7 @@ describe('API Handler: /api/create-slug', () => {
   // --- Test Fungsionalitas ---
 
   it('harus mengembalikan 405 jika metode bukan POST', async () => {
-    const req = mockRequest('GET', {}, { authorization: `Bearer ${AUTHORIZATION_TOKEN}` });
+    const req = mockRequest('GET', {});
     const res = mockResponse();
     await handler(req, res);
     expect(res.status).toHaveBeenCalledWith(405);
@@ -90,7 +64,7 @@ describe('API Handler: /api/create-slug', () => {
   });
 
   it('harus mengembalikan 400 untuk field yang wajib diisi tapi kosong', async () => {
-    const req = mockRequest('POST', { slug: 'test' }, { authorization: `Bearer ${AUTHORIZATION_TOKEN}` }); // Field lain kosong
+    const req = mockRequest('POST', { slug: 'test' }); // Field lain kosong
     const res = mockResponse();
     await handler(req, res);
     expect(res.status).toHaveBeenCalledWith(400);
@@ -104,7 +78,7 @@ describe('API Handler: /api/create-slug', () => {
       slug: 'Slug Tidak Valid',
       appsScriptUrl: 'https://script.google.com/macros/s/123/exec',
       appName: 'Test App',
-    }, { authorization: `Bearer ${AUTHORIZATION_TOKEN}` });
+    });
     const res = mockResponse();
     await handler(req, res);
     expect(res.status).toHaveBeenCalledWith(400);
@@ -113,7 +87,7 @@ describe('API Handler: /api/create-slug', () => {
     });
   });
 
-  it('harus berhasil membuat slug baru dengan otentikasi yang valid', async () => {
+  it('harus berhasil membuat slug baru', async () => {
     const req = mockRequest(
       'POST',
       {
@@ -123,7 +97,6 @@ describe('API Handler: /api/create-slug', () => {
       },
       {
         host: 'contoh.com',
-        authorization: `Bearer ${AUTHORIZATION_TOKEN}`
       }
     );
     const res = mockResponse();
@@ -149,7 +122,7 @@ describe('API Handler: /api/create-slug', () => {
       slug: 'error-slug',
       appsScriptUrl: 'https://script.google.com/macros/s/123/exec',
       appName: 'Test App',
-    }, { authorization: `Bearer ${AUTHORIZATION_TOKEN}` });
+    });
     const res = mockResponse();
 
     const testError = new Error('KV Get Error');
