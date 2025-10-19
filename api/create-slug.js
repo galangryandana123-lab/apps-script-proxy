@@ -22,15 +22,7 @@ export default async function handler(req, res) {
     return res.status(429).json({ error: 'Too many requests. Please try again later.' });
   }
 
-  // 2. Authentication
-  const { authorization } = req.headers;
-  const token = authorization?.split(' ')[1];
-
-  if (!token || token !== process.env.AUTHORIZATION_TOKEN) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-
-  // 3. Only accept POST requests
+  // 2. Only accept POST requests
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
