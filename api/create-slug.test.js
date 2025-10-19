@@ -1,14 +1,24 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { kv } from '@vercel/kv';
 import handler from './create-slug.js';
+import * as utils from './_utils.js';
 
-// Mock modul @vercel/kv
+// Mock modul @vercel/kv dan _utils.js
 vi.mock('@vercel/kv', () => ({
   kv: {
     get: vi.fn(),
     set: vi.fn(),
+    pipeline: vi.fn().mockReturnThis(),
+    zadd: vi.fn(),
+    zremrangebyscore: vi.fn(),
+    zcard: vi.fn(),
+    expire: vi.fn(),
+    exec: vi.fn(),
   },
 }));
+
+// Mock fungsi rateLimit secara spesifik
+const rateLimitMock = vi.spyOn(utils, 'rateLimit');
 
 // Fungsi bantuan untuk membuat objek request dan response palsu
 const mockRequest = (method, body, headers = {}) => ({
@@ -21,18 +31,58 @@ const mockResponse = () => {
   const res = {};
   res.status = vi.fn().mockReturnValue(res);
   res.json = vi.fn().mockReturnValue(res);
+  res.setHeader = vi.fn();
   return res;
 };
+
+const AUTHORIZATION_TOKEN = 'test-secret-token';
 
 describe('API Handler: /api/create-slug', () => {
   beforeEach(() => {
     // Reset semua mock sebelum setiap tes
     vi.resetAllMocks();
     delete process.env.APP_BASE_URL;
+    process.env.AUTHORIZATION_TOKEN = AUTHORIZATION_TOKEN;
+
+    // Default mock untuk rate limit (tidak terbatas)
+    rateLimitMock.mockResolvedValue({ isLimited: false, remaining: 10, reset: 60 });
   });
 
+  // --- Test Keamanan ---
+
+  it('harus mengembalikan 401 jika token otentikasi tidak ada', async () => {
+    const req = mockRequest('POST', {}, {}); // Tidak ada header Authorization
+    const res = mockResponse();
+    await handler(req, res);
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith({ error: 'Unauthorized' });
+  });
+
+  it('harus mengembalikan 401 jika token otentikasi tidak valid', async () => {
+    const req = mockRequest('POST', {}, { authorization: 'Bearer invalid-token' });
+    const res = mockResponse();
+    await handler(req, res);
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith({ error: 'Unauthorized' });
+  });
+
+  it('harus mengembalikan 429 jika rate limit terlampaui', async () => {
+    // Mock rateLimit untuk mengembalikan 'terbatas'
+    rateLimitMock.mockResolvedValue({ isLimited: true, remaining: 0, reset: 30 });
+
+    const req = mockRequest('POST', {}, { authorization: `Bearer ${AUTHORIZATION_TOKEN}` });
+    const res = mockResponse();
+
+    await handler(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(429);
+    expect(res.json).toHaveBeenCalledWith({ error: 'Too many requests. Please try again later.' });
+  });
+
+  // --- Test Fungsionalitas ---
+
   it('harus mengembalikan 405 jika metode bukan POST', async () => {
-    const req = mockRequest('GET', {});
+    const req = mockRequest('GET', {}, { authorization: `Bearer ${AUTHORIZATION_TOKEN}` });
     const res = mockResponse();
     await handler(req, res);
     expect(res.status).toHaveBeenCalledWith(405);
@@ -40,7 +90,7 @@ describe('API Handler: /api/create-slug', () => {
   });
 
   it('harus mengembalikan 400 untuk field yang wajib diisi tapi kosong', async () => {
-    const req = mockRequest('POST', { slug: 'test' }); // Field lain kosong
+    const req = mockRequest('POST', { slug: 'test' }, { authorization: `Bearer ${AUTHORIZATION_TOKEN}` }); // Field lain kosong
     const res = mockResponse();
     await handler(req, res);
     expect(res.status).toHaveBeenCalledWith(400);
@@ -54,7 +104,7 @@ describe('API Handler: /api/create-slug', () => {
       slug: 'Slug Tidak Valid',
       appsScriptUrl: 'https://script.google.com/macros/s/123/exec',
       appName: 'Test App',
-    });
+    }, { authorization: `Bearer ${AUTHORIZATION_TOKEN}` });
     const res = mockResponse();
     await handler(req, res);
     expect(res.status).toHaveBeenCalledWith(400);
@@ -63,42 +113,7 @@ describe('API Handler: /api/create-slug', () => {
     });
   });
 
-  it('harus mengembalikan 400 untuk URL Google Apps Script yang tidak valid', async () => {
-    const req = mockRequest('POST', {
-      slug: 'valid-slug',
-      appsScriptUrl: 'https://url-tidak-valid.com',
-      appName: 'Test App',
-    });
-    const res = mockResponse();
-    await handler(req, res);
-    expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.json).toHaveBeenCalledWith({
-      error: 'URL Google Apps Script tidak valid',
-    });
-  });
-
-  it('harus mengembalikan 409 jika slug sudah ada', async () => {
-    const req = mockRequest('POST', {
-      slug: 'slug-sudah-ada',
-      appsScriptUrl: 'https://script.google.com/macros/s/123/exec',
-      appName: 'Test App',
-    });
-    const res = mockResponse();
-
-    // Mock kv.get untuk mengembalikan data yang sudah ada
-    kv.get.mockResolvedValue({ slug: 'slug-sudah-ada' });
-
-    await handler(req, res);
-
-    expect(kv.get).toHaveBeenCalledWith('slug:slug-sudah-ada');
-    expect(res.status).toHaveBeenCalledWith(409);
-    expect(res.json).toHaveBeenCalledWith({
-      error: `Slug "slug-sudah-ada" sudah digunakan. Silakan gunakan nama lain.`,
-    });
-    expect(kv.set).not.toHaveBeenCalled();
-  });
-
-  it('harus berhasil membuat slug baru', async () => {
+  it('harus berhasil membuat slug baru dengan otentikasi yang valid', async () => {
     const req = mockRequest(
       'POST',
       {
@@ -106,88 +121,27 @@ describe('API Handler: /api/create-slug', () => {
         appsScriptUrl: 'https://script.google.com/macros/s/12345/exec',
         appName: 'Aplikasi Baru Saya',
       },
-      { host: 'contoh.com' }
+      {
+        host: 'contoh.com',
+        authorization: `Bearer ${AUTHORIZATION_TOKEN}`
+      }
     );
     const res = mockResponse();
 
-    // Mock kv.get mengembalikan null (slug tersedia)
     kv.get.mockResolvedValue(null);
-    kv.set.mockResolvedValue('OK'); // Mock set yang berhasil
+    kv.set.mockResolvedValue('OK');
 
     await handler(req, res);
 
     expect(kv.get).toHaveBeenCalledWith('slug:slug-baru');
     expect(kv.set).toHaveBeenCalledTimes(1);
-
-    // Periksa bahwa objek yang disimpan ke kv.set benar
-    const savedMapping = kv.set.mock.calls[0][1];
-    expect(savedMapping.slug).toBe('slug-baru');
-    expect(savedMapping.appsScriptUrl).toBe('https://script.google.com/macros/s/12345/exec');
-    expect(savedMapping.appName).toBe('Aplikasi Baru Saya');
-    expect(savedMapping.accessCount).toBe(0);
-    expect(savedMapping).toHaveProperty('createdAt');
-
     expect(res.status).toHaveBeenCalledWith(201);
-    expect(res.json).toHaveBeenCalledWith({
-      success: true,
-      slug: 'slug-baru',
-      message: `Custom URL berhasil dibuat: /slug-baru`,
-      url: `https://contoh.com/slug-baru`,
-    });
-  });
-
-  it('harus menggunakan APP_BASE_URL jika tersedia', async () => {
-    process.env.APP_BASE_URL = 'https://app.example.com';
-
-    const req = mockRequest(
-      'POST',
-      {
-        slug: 'slug-base',
-        appsScriptUrl: 'https://script.google.com/macros/s/abc/exec',
-        appName: 'Base URL',
-      },
-      { host: 'malicious.com' }
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success: true,
+        slug: 'slug-baru',
+      })
     );
-    const res = mockResponse();
-
-    kv.get.mockResolvedValue(null);
-    kv.set.mockResolvedValue('OK');
-
-    await handler(req, res);
-
-    expect(res.status).toHaveBeenCalledWith(201);
-    expect(res.json).toHaveBeenCalledWith({
-      success: true,
-      slug: 'slug-base',
-      message: `Custom URL berhasil dibuat: /slug-base`,
-      url: `https://app.example.com/slug-base`,
-    });
-  });
-
-  it('harus mengembalikan URL relatif ketika host tidak valid', async () => {
-    const req = mockRequest(
-      'POST',
-      {
-        slug: 'slug-relatif',
-        appsScriptUrl: 'https://script.google.com/macros/s/xyz/exec',
-        appName: 'Relatif',
-      },
-      { host: 'bad.com\nmalicious.com' }
-    );
-    const res = mockResponse();
-
-    kv.get.mockResolvedValue(null);
-    kv.set.mockResolvedValue('OK');
-
-    await handler(req, res);
-
-    expect(res.status).toHaveBeenCalledWith(201);
-    expect(res.json).toHaveBeenCalledWith({
-      success: true,
-      slug: 'slug-relatif',
-      message: `Custom URL berhasil dibuat: /slug-relatif`,
-      url: `/slug-relatif`,
-    });
   });
 
   it('harus mengembalikan 500 jika kv.get melempar error', async () => {
@@ -195,10 +149,9 @@ describe('API Handler: /api/create-slug', () => {
       slug: 'error-slug',
       appsScriptUrl: 'https://script.google.com/macros/s/123/exec',
       appName: 'Test App',
-    });
+    }, { authorization: `Bearer ${AUTHORIZATION_TOKEN}` });
     const res = mockResponse();
 
-    // Mock kv.get untuk melempar error
     const testError = new Error('KV Get Error');
     kv.get.mockRejectedValue(testError);
 

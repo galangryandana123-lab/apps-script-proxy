@@ -1,5 +1,5 @@
 import { kv } from '@vercel/kv';
-import { escapeHtml } from './_utils.js';
+import { escapeHtml, rateLimit, sanitizeForLog } from './_utils.js';
 
 /**
  * Dynamic Slug Reverse Proxy for Google Apps Script
@@ -14,6 +14,22 @@ import { escapeHtml } from './_utils.js';
 
 export default async function handler(req, res) {
   try {
+    // Rate Limiting
+    const { isLimited, remaining, reset } = await rateLimit(req, {
+      limit: 60, // 60 requests
+      window: 60, // per 60 seconds
+      prefix: 'proxy',
+      kv: kv
+    });
+
+    res.setHeader('X-RateLimit-Limit', 60);
+    res.setHeader('X-RateLimit-Remaining', remaining);
+    res.setHeader('X-RateLimit-Reset', reset);
+
+    if (isLimited) {
+      return res.status(429).json({ error: 'Too many requests' });
+    }
+
     // Extract slug from catch-all route
     // slug can be: ['supplier-gathering'] or ['supplier-gathering', 'wardeninit']
     const slugArray = Array.isArray(req.query.slug) ? req.query.slug : [req.query.slug];
@@ -22,7 +38,9 @@ export default async function handler(req, res) {
     const safeSlug = escapeHtml(slug);
 
     // Log request
-    console.log(`[Proxy] ${req.method} /${slugArray.join('/')}${req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : ''}`);
+    const fullPath = sanitizeForLog(slugArray.join('/'));
+    const logQueryString = req.url.includes('?') ? sanitizeForLog(req.url.substring(req.url.indexOf('?'))) : '';
+    console.log(`[Proxy] ${req.method} /${fullPath}${logQueryString}`);
 
     // Lookup slug in database
     const mapping = await kv.get(`slug:${slug}`);
@@ -189,7 +207,11 @@ export default async function handler(req, res) {
     });
     
     // Set CORS headers
-    forwardHeaders['Access-Control-Allow-Origin'] = '*';
+    const allowedOrigin = process.env.CORS_ALLOWED_ORIGIN;
+    if (allowedOrigin) {
+      forwardHeaders['Access-Control-Allow-Origin'] = allowedOrigin;
+      forwardHeaders['Vary'] = 'Origin'; // Important for caching
+    }
     forwardHeaders['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS';
     forwardHeaders['Access-Control-Allow-Headers'] = 'Content-Type';
     
