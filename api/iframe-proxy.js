@@ -294,7 +294,7 @@ export default async function handler(req, res) {
       allow="camera; microphone; geolocation; *"
       allowfullscreen
       loading="lazy"
-      sandbox="allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts allow-top-navigation"
+      sandbox="allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts allow-top-navigation allow-top-navigation-by-user-activation"
       onload="handleIframeLoad()"
       onerror="handleIframeError()"
     ></iframe>
